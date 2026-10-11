@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f5f5b">
+<title>Bàn Tròn AI</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: single chat column; slide-in panel for history / memory / settings */
+:root{
+  --bg:#f3f4f1; --surface:#ffffff; --line:#d9ddd5; --fg:#1d221f; --muted:#5f685f;
+  --you:#1f5f5b; --you-bg:#e3efed; --on-you:#ffffff;
+  --claude:#a3561c; --claude-bg:#f7ebe0;
+  --gpt:#2f6b3a; --gpt-bg:#e5f0e4;
+  --gemini:#2f56a8; --gemini-bg:#e6ecf8;
+  --danger:#b3261e; --shade:rgba(20,25,22,.35);
+  --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141715; --surface:#1d211e; --line:#323832; --fg:#e7ebe6; --muted:#9aa49a;
+  --you:#7cc4bd; --you-bg:#1c2e2c; --on-you:#0f1a19; --claude:#e7a26b; --claude-bg:#30241a;
+  --gpt:#8fcf98; --gpt-bg:#1d2c1f; --gemini:#9db8f2; --gemini-bg:#1d2436; --danger:#f2867e; --shade:rgba(0,0,0,.55); color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--f-body);display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 12px}
+button.primary{background:var(--you);border-color:var(--you);color:var(--on-you);font-weight:600}
+button.ghost{background:transparent;border-color:transparent}
+button.danger{color:var(--danger)}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--you);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+header{background:var(--bg);border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;display:flex;align-items:center;gap:8px}
+header h1{font-size:16px;margin:0;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seats{display:flex;gap:5px}.dot{width:9px;height:9px;border-radius:50%}
+main{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.inner{max-width:760px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.empty{color:var(--muted)}
+.empty h2{color:var(--fg);font-size:18px;margin:0 0 6px;text-wrap:balance}
+.empty ol{padding-left:20px;margin:8px 0}
+.msg{border-radius:14px;padding:10px 14px;min-width:0;border:1px solid transparent}
+.who{font:500 11.5px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.body{overflow-wrap:anywhere}.body p{margin:0 0 8px}.body p:last-child{margin:0}
+.body ul{margin:4px 0 8px;padding-left:20px}
+.body code{font:13px var(--f-mono)}
+.msg.you{background:var(--you-bg);align-self:flex-end;max-width:88%}.msg.you .who{color:var(--you)}
+.msg.claude{background:var(--claude-bg)}.msg.claude .who{color:var(--claude)}
+.msg.gpt{background:var(--gpt-bg)}.msg.gpt .who{color:var(--gpt)}
+.msg.gemini{background:var(--gemini-bg)}.msg.gemini .who{color:var(--gemini)}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:13px;border-radius:999px}
+.chip[aria-pressed="true"]{border-color:currentColor;font-weight:600}
+.chip[aria-pressed="false"]{opacity:.5}
+.chip.claude{color:var(--claude)}.chip.gpt{color:var(--gpt)}.chip.gemini{color:var(--gemini)}
+.msg.sys{border-color:var(--line);color:var(--muted);font-size:13px}
+.msg.err{border-color:var(--danger);color:var(--danger);font-size:13.5px}
+.round{font:500 11px var(--f-mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;text-align:center}
+.thinking .body{color:var(--muted);font-style:italic}
+@media (prefers-reduced-motion:no-preference){.thinking .body{animation:pulse 1.4s ease-in-out infinite}}
+@keyframes pulse{50%{opacity:.45}}
+footer{border-top:1px solid var(--line);background:var(--bg);padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 8px)}
+.composer{max-width:760px;margin:0 auto;display:grid;gap:8px}
+#input{min-height:48px;max-height:150px;resize:none;line-height:1.5}
+.controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.controls select{width:auto;font-size:13px;padding:6px 8px}
+.spacer{flex:1}
+/* panel */
+#shade{position:fixed;inset:0;background:var(--shade);z-index:10}
+#panel{position:fixed;top:0;bottom:0;left:0;width:min(92vw,420px);background:var(--bg);z-index:11;display:flex;flex-direction:column;
+  border-right:1px solid var(--line);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;border:0;border-radius:0;background:transparent;padding:12px 6px;color:var(--muted);font-weight:600;border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--you);border-bottom-color:var(--you)}
+.pane{flex:1;overflow-y:auto;padding:14px 16px;display:grid;gap:12px;align-content:start}
+.pane h3{margin:4px 0 0;font-size:14px}
+.pane label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.pane .note{font-size:12.5px;color:var(--muted);margin:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.check{display:flex!important;align-items:center;gap:8px;color:var(--fg)!important;font-size:14px!important}
+.check input{width:auto}
+.list{display:grid;gap:6px}
+.item{display:flex;gap:8px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.item .t{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px}
+.item .d{font:11px var(--f-mono);color:var(--muted)}
+.item.cur{border-color:var(--you)}
+.item button{padding:2px 8px;font-size:13px}
+.convo{cursor:pointer}
+#profile{min-height:170px;font-size:14px;line-height:1.5}
+.mono{font-family:var(--f-mono);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <button class="ghost" id="btnMenu" aria-label="Mở menu" style="font-size:20px;padding:4px 8px">☰</button>
+  <div class="seats" aria-hidden="true"><span class="dot" style="background:var(--you)"></span><span class="dot" style="background:var(--claude)"></span><span class="dot" style="background:var(--gpt)"></span><span class="dot" style="background:var(--gemini)"></span></div>
+  <h1 id="title">Bàn Tròn AI</h1>
+  <button id="btnNew">+ Mới</button>
+</header>
+
+<main id="chat"><div class="inner" id="log"></div></main>
+
+<footer>
+  <div class="composer">
+    <textarea id="input" rows="2" placeholder="Anh muốn bàn chuyện gì?"></textarea>
+    <div class="controls">
+      <button class="chip claude" data-seat="claude" aria-pressed="true">Claude</button>
+      <button class="chip gpt" data-seat="gpt" aria-pressed="true">GPT</button>
+      <button class="chip gemini" data-seat="gemini" aria-pressed="true">Gemini</button>
+      <select id="rounds" aria-label="Số vòng">
+        <option value="1">1 vòng</option>
+        <option value="2" selected>2 vòng</option>
+        <option value="3">3 vòng</option>
+      </select>
+      <select id="first" aria-label="Ai nói trước">
+        <option value="claude">Claude trước</option>
+        <option value="gpt">GPT trước</option>
+        <option value="gemini">Gemini trước</option>
+      </select>
+      <span class="spacer"></span>
+      <button id="btnSummary">Tổng kết</button>
+      <button id="btnStop" hidden>Dừng</button>
+      <button class="primary" id="btnSend">Gửi</button>
+    </div>
+  </div>
+</footer>
+
+<div id="shade" hidden></div>
+<aside id="panel" hidden aria-label="Menu">
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="history" aria-selected="true">Lịch sử</button>
+    <button role="tab" data-tab="memory" aria-selected="false">Bộ nhớ</button>
+    <button role="tab" data-tab="settings" aria-selected="false">Cài đặt</button>
+  </div>
+
+  <section class="pane" data-pane="history">
+    <button class="primary" id="btnNew2">+ Cuộc thảo luận mới</button>
+    <div class="list" id="convoList"></div>
+  </section>
+
+  <section class="pane" data-pane="memory" hidden>
+    <h3>Hồ sơ của anh</h3>
+    <p class="note">Cả Claude, GPT và Gemini đọc phần này trước mọi câu trả lời. Ghi những gì anh muốn hai bên luôn biết.</p>
+    <textarea id="profile" placeholder="Ví dụ: Tên Anh Trần, làm bất động sản, trade Forex. Mục tiêu: vượt FTMO 1-Step. Tập trung XAUUSD trên MT5..."></textarea>
+    <button id="btnSaveProfile">Lưu hồ sơ</button>
+    <h3>Những điều đã ghi nhớ (<span id="memCount">0</span>)</h3>
+    <p class="note">App tự rút ra sau mỗi lượt thảo luận. Anh thêm, sửa bằng cách xóa và ghi lại.</p>
+    <div style="display:flex;gap:8px"><input id="memNew" placeholder="Thêm một điều cần nhớ"><button id="btnAddMem">Thêm</button></div>
+    <div class="list" id="memList"></div>
+  </section>
+
+  <section class="pane" data-pane="settings" hidden>
+    <label>Anthropic API key (Claude)<input id="kClaude" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+    <label>OpenAI API key (GPT)<input id="kGpt" type="password" autocomplete="off" placeholder="sk-..."></label>
+    <label>Gemini API key (Google AI Studio)<input id="kGemini" type="password" autocomplete="off" placeholder="AIza..."></label>
+    <div class="row2">
+      <label>Model Claude<input id="mClaude" class="mono" list="dlClaude" placeholder="bấm Lấy danh sách"></label>
+      <label>Model GPT<input id="mGpt" class="mono" list="dlGpt" placeholder="bấm Lấy danh sách"></label>
+    </div>
+    <label>Model Gemini<input id="mGemini" class="mono" list="dlGemini" placeholder="bấm Lấy danh sách"></label>
+    <datalist id="dlClaude"></datalist><datalist id="dlGpt"></datalist><datalist id="dlGemini"></datalist>
+    <button id="btnModels">Lấy danh sách model từ tài khoản</button>
+    <p class="note" id="modelsNote">Sau khi dán key, bấm nút trên rồi chạm vào ô model để chọn.</p>
+    <label>Độ dài mỗi lượt nói
+      <select id="len"><option value="120">Ngắn (~120 từ)</option><option value="220" selected>Vừa (~220 từ)</option><option value="400">Dài (~400 từ)</option></select>
+    </label>
+    <label class="check"><input type="checkbox" id="autoMem" checked> Tự ghi nhớ sau mỗi lượt thảo luận</label>
+    <button class="primary" id="btnSaveSettings">Lưu cài đặt</button>
+    <h3>Sao lưu</h3>
+    <p class="note">Lưu toàn bộ hồ sơ, bộ nhớ và lịch sử ra một file (không gồm API key). Nên sao lưu định kỳ.</p>
+    <div class="row2"><button id="btnExport">Sao lưu ra file</button><button id="btnImport">Khôi phục từ file</button></div>
+    <input type="file" id="fileImport" accept="application/json,.json" hidden>
+  </section>
+</aside>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const NAMES = { you:"Anh", claude:"Claude", gpt:"GPT", gemini:"Gemini" };
+const SEATS = ["claude","gpt","gemini"];
+const KEYID = { claude:"kClaude", gpt:"kGpt", gemini:"kGemini" };
+const LS = {
+  get(k){ try{ return localStorage.getItem(k) }catch(e){ return null } },
+  set(k,v){ try{ localStorage.setItem(k,v) }catch(e){} }
+};
+
+/* ---------- storage (IndexedDB, falls back to memory) ---------- */
+const DB = (() => {
+  let dbp = null;
+  function open(){
+    if (!dbp) dbp = new Promise((res, rej) => {
+      const r = indexedDB.open("bantron", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("kv");
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return dbp;
+  }
+  return {
+    async get(k){ try{ const db = await open(); return await new Promise((res,rej)=>{ const q = db.transaction("kv").objectStore("kv").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }catch(e){ return undefined } },
+    async set(k,v){ try{ const db = await open(); await new Promise((res,rej)=>{ const t = db.transaction("kv","readwrite"); t.objectStore("kv").put(v,k); t.oncomplete=res; t.onerror=()=>rej(t.error); }); }catch(e){ console.warn(e) } }
+  };
+})();
+
+let state = { profile:"", memories:[], convos:[], currentId:null };
+let saveTimer = null;
+function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => DB.set("state", state), 200); }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const cur = () => state.convos.find(c => c.id === state.currentId);
+const fmtDate = ts => { const d = new Date(ts); return d.toLocaleDateString("vi-VN") + " " + d.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"}); };
+
+/* ---------- text rendering ---------- */
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function md(s){
+  const lines = esc(String(s).trim()).split("\n");
+  let html = "", list = false, para = [];
+  const inline = t => t.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>");
+  const flush = () => { if (para.length){ html += "<p>"+inline(para.join("<br>"))+"</p>"; para = []; } };
+  for (const l of lines){
+    const m = l.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
+    if (m){ flush(); if(!list){ html += "<ul>"; list = true; } html += "<li>"+inline(m[1])+"</li>"; continue; }
+    if (list){ html += "</ul>"; list = false; }
+    if (!l.trim()){ flush(); continue; }
+    para.push(l.replace(/^#+\s*/,""));
+  }
+  flush(); if (list) html += "</ul>";
+  return html;
+}
+
+/* ---------- chat view ---------- */
+function emptyView(){
+  $("log").innerHTML = '<div class="empty"><h2>Hỏi một lần, Claude, GPT và Gemini cùng thảo luận</h2><ol>' +
+    '<li>Mở ☰ → <b>Cài đặt</b>: dán API key (có bên nào dán bên đó), lấy danh sách model, lưu.</li>' +
+    '<li>Mở ☰ → <b>Bộ nhớ</b>: ghi hồ sơ của anh một lần.</li>' +
+    '<li>Gõ câu hỏi, chọn số vòng, bấm <b>Gửi</b>. Chạm vào tên để chọn ai tham gia. Các bên phản biện nhau, anh chen vào lúc nào cũng được.</li></ol>' +
+    '<p class="note">Mọi cuộc thảo luận được lưu trong ☰ → Lịch sử. Sau mỗi lượt, app tự ghi nhớ những điểm quan trọng.</p></div>';
+}
+function bubble(cls, who, html){
+  $("log").querySelector(".empty")?.remove();
+  const d = document.createElement("div");
+  d.className = "msg " + cls;
+  d.innerHTML = (who ? '<div class="who">'+esc(who)+'</div>' : "") + '<div class="body">'+html+'</div>';
+  $("log").appendChild(d);
+  requestAnimationFrame(() => { $("chat").scrollTop = $("chat").scrollHeight; });
+  return d;
+}
+const sys = t => bubble("sys","",esc(t));
+const err = t => bubble("err","",esc(t));
+function roundMark(n,total){
+  const d = document.createElement("div"); d.className = "round"; d.textContent = "Vòng " + n + " / " + total;
+  $("log").appendChild(d);
+}
+function renderChat(){
+  const c = cur();
+  $("title").textContent = c ? c.title : "Bàn Tròn AI";
+  if (!c || !c.msgs.length){ emptyView(); return; }
+  $("log").innerHTML = "";
+  for (const m of c.msgs) bubble(m.who, NAMES[m.who], md(m.text));
+}
+
+/* ---------- panel ---------- */
+function openPanel(tab){
+  $("panel").hidden = false; $("shade").hidden = false;
+  showTab(tab || "history");
+}
+function closePanel(){ $("panel").hidden = true; $("shade").hidden = true; }
+function showTab(tab){
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  document.querySelectorAll(".pane").forEach(p => p.hidden = p.dataset.pane !== tab);
+  if (tab === "history") renderConvos();
+  if (tab === "memory") { $("profile").value = state.profile; renderMem(); }
+}
+function renderConvos(){
+  const box = $("convoList");
+  if (!state.convos.length){ box.innerHTML = '<p class="note">Chưa có cuộc thảo luận nào.</p>'; return; }
+  box.innerHTML = "";
+  [...state.convos].sort((a,b) => b.ts - a.ts).forEach(c => {
+    const el = document.createElement("div");
+    el.className = "item convo" + (c.id === state.currentId ? " cur" : "");
+    el.innerHTML = '<div class="t">'+esc(c.title)+'<div class="d">'+fmtDate(c.ts)+' · '+c.msgs.length+' lượt</div></div>';
+    const del = document.createElement("button"); del.className = "danger"; del.textContent = "Xóa";
+    del.onclick = ev => { ev.stopPropagation();
+      if (del.dataset.arm){ state.convos = state.convos.filter(x => x.id !== c.id); if (state.currentId === c.id) state.currentId = null; save(); renderConvos(); renderChat(); }
+      else { del.dataset.arm = "1"; del.textContent = "Chắc chắn?"; }
+    };
+    el.appendChild(del);
+    el.onclick = () => { state.currentId = c.id; save(); renderChat(); closePanel(); };
+    box.appendChild(el);
+  });
+}
+function renderMem(){
+  $("memCount").textContent = state.memories.length;
+  const box = $("memList");
+  if (!state.memories.length){ box.innerHTML = '<p class="note">Chưa có gì. App sẽ tự thêm sau các cuộc thảo luận.</p>'; return; }
+  box.innerHTML = "";
+  [...state.memories].reverse().forEach(m => {
+    const el = document.createElement("div"); el.className = "item";
+    el.innerHTML = '<div class="t">'+esc(m.text)+'<div class="d">'+fmtDate(m.ts)+'</div></div>';
+    const del = document.createElement("button"); del.className = "danger"; del.textContent = "Xóa";
+    del.onclick = () => { state.memories = state.memories.filter(x => x.id !== m.id); save(); renderMem(); };
+    el.appendChild(del); box.appendChild(el);
+  });
+}
+
+/* ---------- settings ---------- */
+const SETTINGS = ["kClaude","kGpt","kGemini","mClaude","mGpt","mGemini","len"];
+function loadSettings(){
+  SETTINGS.forEach(id => { const v = LS.get("bt_"+id); if (v) $(id).value = v; });
+  if (!$("mClaude").value) $("mClaude").value = "claude-sonnet-5-5";
+  $("autoMem").checked = LS.get("bt_autoMem") !== "0";
+}
+function saveSettings(){
+  SETTINGS.forEach(id => LS.set("bt_"+id, $(id).value.trim()));
+  LS.set("bt_autoMem", $("autoMem").checked ? "1" : "0");
+}
+async function fetchModels(){
+  const note = $("modelsNote"); note.textContent = "Đang lấy danh sách…";
+  const out = [];
+  const kc = $("kClaude").value.trim(), kg = $("kGpt").value.trim();
+  if (kc) try{
+    const r = await fetch("https://api.anthropic.com/v1/models?limit=100", { headers:{ "x-api-key":kc, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" }});
+    const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || r.status);
+    const ids = (j.data||[]).map(m => m.id);
+    $("dlClaude").innerHTML = ids.map(i => '<option value="'+esc(i)+'">').join("");
+    out.push("Claude: " + ids.length + " model (mới nhất: " + (ids[0]||"?") + ")");
+  }catch(e){ out.push("Claude lỗi: " + e.message); }
+  if (kg) try{
+    const r = await fetch("https://api.openai.com/v1/models", { headers:{ "authorization":"Bearer " + kg }});
+    const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || r.status);
+    const ids = (j.data||[]).filter(m => /^(gpt|o\d|chatgpt)/i.test(m.id) && !/(audio|realtime|transcribe|tts|image|embedding|search|instruct)/i.test(m.id))
+      .sort((a,b) => (b.created||0) - (a.created||0)).map(m => m.id);
+    $("dlGpt").innerHTML = ids.map(i => '<option value="'+esc(i)+'">').join("");
+    if (!$("mGpt").value && ids[0]) $("mGpt").value = ids[0];
+    out.push("GPT: " + ids.length + " model (mới nhất: " + (ids[0]||"?") + ")");
+  }catch(e){ out.push("GPT lỗi: " + e.message); }
+  const km = $("kGemini").value.trim();
+  if (km) try{
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers:{ "x-goog-api-key":km }});
+    const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || r.status);
+    const ids = (j.models||[]).filter(m => (m.supportedGenerationMethods||[]).includes("generateContent") && /^models\/gemini/.test(m.name) && !/(image|tts|audio|embedding|live)/i.test(m.name))
+      .map(m => m.name.replace(/^models\//,"")).sort().reverse();
+    $("dlGemini").innerHTML = ids.map(i => '<option value="'+esc(i)+'">').join("");
+    if (!$("mGemini").value && ids[0]) $("mGemini").value = ids[0];
+    out.push("Gemini: " + ids.length + " model");
+  }catch(e){ out.push("Gemini lỗi: " + e.message); }
+  note.textContent = out.length ? out.join(" · ") + ". Chạm vào ô model để chọn." : "Hãy dán API key trước.";
+}
+
+/* ---------- prompts ---------- */
+function context(){
+  let s = "";
+  if (state.profile.trim()) s += "\n\nHỒ SƠ ANH ANH (người hỏi):\n" + state.profile.trim();
+  const mem = state.memories.slice(-80);
+  if (mem.length) s += "\n\nNHỮNG ĐIỀU ĐÃ GHI NHỚ TỪ CÁC CUỘC THẢO LUẬN TRƯỚC:\n" + mem.map(m => "- " + m.text).join("\n");
+  return s;
+}
+function brief(me, solo, seats){
+  const other = (seats || SEATS).filter(x => x !== me).map(x => NAMES[x]).join(" và ");
+  const words = $("len").value || "220";
+  const intro = solo
+    ? "Bạn là " + NAMES[me] + ", đang trò chuyện với anh Anh. "
+    : "Bạn là " + NAMES[me] + ", đang ngồi bàn tròn thảo luận cùng anh Anh (người hỏi) và " + other + " (AI khác). " +
+      "Nếu " + other + " đã nói, hãy phản hồi trực tiếp: chỉ rõ điểm đồng ý, điểm sai hoặc thiếu, và bổ sung góc nhìn mới. Không lặp lại ý đã có. ";
+  return intro + "Luôn trả lời bằng tiếng Việt, xưng em, gọi người hỏi là anh. Tối đa khoảng " + words + " từ. " +
+    "Thẳng thắn, không khen xã giao, dựa trên lập luận và số liệu; nói rõ khi không chắc chắn. " +
+    "Nếu anh Anh vừa chen vào, ưu tiên trả lời anh. Không viết tên mình ở đầu câu trả lời. " +
+    "Dùng hồ sơ và ghi nhớ dưới đây khi chúng liên quan, không cần nhắc lại." + context();
+}
+function transcriptText(extra, me){
+  const c = cur();
+  const lines = c.msgs.slice(-30).map(t => "[" + NAMES[t.who] + "]: " + t.text);
+  return "Biên bản cuộc thảo luận hiện tại:\n\n" + lines.join("\n\n") + "\n\n" + (extra || ("Đến lượt bạn (" + NAMES[me] + ") phát biểu."));
+}
+
+/* ---------- API ---------- */
+async function callClaude(system, prompt, signal, maxTokens){
+  const key = $("kClaude").value.trim(); if (!key) throw new Error("Chưa có Anthropic API key. Mở ☰ → Cài đặt.");
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST", signal,
+    headers:{ "content-type":"application/json", "x-api-key":key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+    body: JSON.stringify({ model:$("mClaude").value.trim(), max_tokens:maxTokens||2500, system, messages:[{ role:"user", content:prompt }] })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("Claude báo lỗi " + r.status + ": " + (j.error?.message || "không rõ"));
+  return (j.content||[]).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+}
+async function callGpt(system, prompt, signal){
+  const key = $("kGpt").value.trim(); if (!key) throw new Error("Chưa có OpenAI API key. Mở ☰ → Cài đặt.");
+  const model = $("mGpt").value.trim(); if (!model) throw new Error("Chưa chọn model GPT. Mở ☰ → Cài đặt → Lấy danh sách model.");
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method:"POST", signal,
+    headers:{ "content-type":"application/json", "authorization":"Bearer " + key },
+    body: JSON.stringify({ model, max_completion_tokens:6000, messages:[{ role:"system", content:system }, { role:"user", content:prompt }] })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("GPT báo lỗi " + r.status + ": " + (j.error?.message || "không rõ"));
+  return (j.choices?.[0]?.message?.content || "").trim();
+}
+
+async function callGemini(system, prompt, signal){
+  const key = $("kGemini").value.trim(); if (!key) throw new Error("Chưa có Gemini API key. Mở ☰ → Cài đặt.");
+  const model = $("mGemini").value.trim(); if (!model) throw new Error("Chưa chọn model Gemini. Mở ☰ → Cài đặt → Lấy danh sách model.");
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+    method:"POST", signal,
+    headers:{ "content-type":"application/json", "x-goog-api-key":key },
+    body: JSON.stringify({ systemInstruction:{ parts:[{ text:system }] }, contents:[{ role:"user", parts:[{ text:prompt }] }], generationConfig:{ maxOutputTokens:8000 } })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("Gemini báo lỗi " + r.status + ": " + (j.error?.message || "không rõ"));
+  const parts = j.candidates?.[0]?.content?.parts || [];
+  return parts.filter(p => p.text && !p.thought).map(p => p.text).join("").trim();
+}
+const CALL = { claude:callClaude, gpt:callGpt, gemini:callGemini };
+function activeSeats(){ return [...document.querySelectorAll(".chip[data-seat]")].filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.dataset.seat); }
+function speakingOrder(){
+  const seats = activeSeats(), f = $("first").value;
+  const i = seats.indexOf(f);
+  return i > 0 ? seats.slice(i).concat(seats.slice(0, i)) : seats;
+}
+
+/* ---------- discussion flow ---------- */
+let busy = false, ctl = null;
+function setBusy(b){ busy = b; $("btnSend").disabled = b; $("btnSummary").disabled = b; $("btnStop").hidden = !b; }
+
+async function speak(who, solo, extra, seats){
+  const b = bubble(who + " thinking", NAMES[who], "Đang suy nghĩ…");
+  try{
+    const sysPrompt = brief(who, solo, seats), prompt = transcriptText(extra, who);
+    const text = await CALL[who](sysPrompt, prompt, ctl.signal);
+    if (!text) throw new Error(NAMES[who] + " không trả lời gì. Thử lại hoặc đổi model.");
+    b.classList.remove("thinking"); b.querySelector(".body").innerHTML = md(text);
+    const c = cur(); c.msgs.push({ who, text }); c.ts = Date.now(); save();
+    return true;
+  }catch(e){
+    b.remove();
+    if (e.name === "AbortError"){ sys("Đã dừng."); return false; }
+    const msg = String(e.message || e);
+    err(msg + (msg.includes("Failed to fetch") ? " Không kết nối được. Kiểm tra mạng, hoặc mở app bằng Chrome." : ""));
+    return false;
+  }
+}
+
+function newConvo(firstText){
+  const c = { id:uid(), title:(firstText||"Cuộc thảo luận mới").replace(/\s+/g," ").slice(0,60), ts:Date.now(), msgs:[], memAt:0 };
+  state.convos.push(c); state.currentId = c.id; save(); return c;
+}
+
+async function run(){
+  const q = $("input").value.trim();
+  if (!q || busy) return;
+  $("input").value = "";
+  if (!cur()) newConvo(q);
+  const c = cur();
+  c.msgs.push({ who:"you", text:q }); c.ts = Date.now(); save();
+  $("title").textContent = c.title;
+  bubble("you", NAMES.you, md(q));
+  const order = speakingOrder();
+  if (!order.length){ err("Chưa chọn ai tham gia. Chạm vào tên Claude, GPT hoặc Gemini."); return; }
+  const solo = order.length === 1;
+  const total = solo ? 1 : +$("rounds").value;
+  ctl = new AbortController(); setBusy(true);
+  let ok = true;
+  try{
+    for (let i = 1; i <= total && ok; i++){
+      if (total > 1) roundMark(i, total);
+      for (const who of order){ if (!(await speak(who, solo, null, order))){ ok = false; break; } }
+    }
+  } finally { setBusy(false); }
+  remember();
+}
+
+async function summarize(){
+  const c = cur();
+  if (busy) return;
+  if (!c || !c.msgs.length){ sys("Chưa có gì để tổng kết."); return; }
+  const order = speakingOrder();
+  if (!order.length){ err("Chưa chọn ai để tổng kết."); return; }
+  const who = order[0];
+  ctl = new AbortController(); setBusy(true);
+  try{
+    await speak(who, false, "Hãy làm chủ tọa tổng kết khách quan cho anh Anh: (1) những điểm các bên đồng ý, (2) những điểm còn bất đồng và lý do, (3) kết luận và việc nên làm tiếp. Công bằng với tất cả các bên, kể cả khi bên khác đúng hơn bạn.", order);
+  } finally { setBusy(false); }
+  remember();
+}
+
+/* ---------- automatic memory ---------- */
+async function remember(){
+  const c = cur();
+  const memAI = SEATS.find(s => $(KEYID[s]).value.trim() && (s !== "gpt" || $("mGpt").value.trim()) && (s !== "gemini" || $("mGemini").value.trim()));
+  if (!c || !$("autoMem").checked || !memAI) return;
+  const fresh = c.msgs.slice(c.memAt || 0);
+  if (!fresh.some(m => m.who === "you")) return;
+  const existing = state.memories.map(m => "- " + m.text).join("\n") || "(chưa có)";
+  const prompt = "HỒ SƠ:\n" + (state.profile || "(trống)") + "\n\nĐÃ GHI NHỚ:\n" + existing +
+    "\n\nĐOẠN THẢO LUẬN MỚI:\n" + fresh.map(m => "[" + NAMES[m.who] + "]: " + m.text).join("\n\n").slice(-30000) +
+    "\n\nRút ra tối đa 5 điều MỚI, đáng nhớ lâu dài về anh Anh hoặc công việc của anh: quyết định anh đưa ra, thông số chiến lược anh chọn, sở thích, mục tiêu, kết luận anh đồng ý. " +
+    "Chỉ lấy điều anh Anh nói hoặc xác nhận, không lấy ý kiến riêng của AI. Bỏ qua điều đã có trong hồ sơ hoặc đã ghi nhớ. Mỗi điều một câu ngắn tiếng Việt. " +
+    "Chỉ trả về một mảng JSON các chuỗi, ví dụ [\"...\"], hoặc [] nếu không có gì mới.";
+  try{
+    const text = await CALL[memAI]("Bạn là bộ ghi nhớ của app. Chỉ trả về JSON.", prompt, undefined, 600);
+    const m = text.match(/\[[\s\S]*\]/); if (!m) return;
+    const items = JSON.parse(m[0]).filter(x => typeof x === "string" && x.trim()).slice(0,5);
+    c.memAt = c.msgs.length;
+    if (items.length){
+      items.forEach(t => state.memories.push({ id:uid(), text:t.trim(), ts:Date.now(), from:c.id }));
+      sys("Đã ghi nhớ thêm " + items.length + " điều (xem ở ☰ → Bộ nhớ).");
+    }
+    save();
+  }catch(e){ console.warn("memory", e); }
+}
+
+/* ---------- backup ---------- */
+function exportData(){
+  const blob = new Blob([JSON.stringify({ app:"ban-tron-ai", version:1, exported:new Date().toISOString(), ...state }, null, 1)], { type:"application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ban-tron-sao-luu-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+async function importData(file){
+  try{
+    const d = JSON.parse(await file.text());
+    if (d.app !== "ban-tron-ai" || !Array.isArray(d.convos)) throw new Error("File không phải bản sao lưu của Bàn Tròn AI.");
+    if (!confirm("Khôi phục sẽ thay toàn bộ dữ liệu hiện tại bằng dữ liệu trong file. Tiếp tục?")) return;
+    state = { profile:d.profile||"", memories:d.memories||[], convos:d.convos, currentId:null };
+    save(); renderChat(); showTab("history"); sys("Đã khôi phục " + state.convos.length + " cuộc thảo luận và " + state.memories.length + " điều ghi nhớ.");
+  }catch(e){ err("Không khôi phục được: " + e.message); }
+}
+
+/* ---------- wiring ---------- */
+$("btnMenu").onclick = () => openPanel();
+$("shade").onclick = closePanel;
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+const startNew = () => { if (busy) return; state.currentId = null; save(); renderChat(); closePanel(); $("input").focus(); };
+$("btnNew").onclick = startNew; $("btnNew2").onclick = startNew;
+document.querySelectorAll(".chip[data-seat]").forEach(b => {
+  const saved = LS.get("bt_seat_" + b.dataset.seat); if (saved) b.setAttribute("aria-pressed", saved);
+  b.onclick = () => { const v = b.getAttribute("aria-pressed") === "true" ? "false" : "true"; b.setAttribute("aria-pressed", v); LS.set("bt_seat_" + b.dataset.seat, v); };
+});
+$("btnSend").onclick = run;
+$("btnSummary").onclick = summarize;
+$("btnStop").onclick = () => ctl?.abort();
+$("btnSaveProfile").onclick = () => { state.profile = $("profile").value; save(); $("btnSaveProfile").textContent = "Đã lưu ✓"; setTimeout(() => $("btnSaveProfile").textContent = "Lưu hồ sơ", 1500); };
+$("btnAddMem").onclick = () => { const t = $("memNew").value.trim(); if (!t) return; state.memories.push({ id:uid(), text:t, ts:Date.now() }); $("memNew").value = ""; save(); renderMem(); };
+$("btnSaveSettings").onclick = () => { saveSettings(); closePanel(); sys("Đã lưu cài đặt."); };
+$("btnModels").onclick = fetchModels;
+$("btnExport").onclick = exportData;
+$("btnImport").onclick = () => $("fileImport").click();
+$("fileImport").onchange = e => { const f = e.target.files[0]; if (f) importData(f); e.target.value = ""; };
+$("input").addEventListener("input", e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 150) + "px"; });
+
+(async () => {
+  loadSettings();
+  const saved = await DB.get("state");
+  if (saved && Array.isArray(saved.convos)) state = Object.assign(state, saved);
+  renderChat();
+  if (!SEATS.some(s => $(KEYID[s]).value)) openPanel("settings");
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+  try{ if (navigator.storage?.persist) navigator.storage.persist(); }catch(e){}
+})();
+})();
+</script>
+</body>
+</html>
