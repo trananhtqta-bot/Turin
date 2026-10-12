@@ -1,0 +1,10 @@
+{
+  "items": [
+    {
+      "id": "bots-da-test-20261012",
+      "title": "Các bot MQL5 đã test",
+      "date": "12/10/2026",
+      "text": "Mục đích: anh Anh test bot free MQL5 Market chủ yếu để học phương pháp ra/vào lệnh, không phải để tìm bot qua FTMO sẵn. XAUUSD, mặc định, real ticks, deposit 100k. Kết luận: chưa bot nào đạt chuẩn FTMO 1-Step ở thông số mặc định. Lumen: sạch nhất, gần phương pháp H4 Path của anh nhất (Trung bình). Universal Breakout, MT5Phoenix, Supertrend G5, GoldXLevel, ZigZag Fibo (thang 5 mức): Thấp. The Impossible Gold: loại (SL 2.5 USD, TP 30 USD không chạm, trailing 0.2 USD nhỏ hơn spread, vào lệnh ngược xác suất). Bài học: SL >= 1.5-2x ATR khung vào lệnh; trailing chỉ bật sau >= 1 ATR lời; test bằng tick thật. Chưa test: Purple Wine 3.2, Tulips MT5, RangeBreakout EA, Swing Breakout EA, Delphi Regression EA, GoldUPtrend, Gold Smart Trend EA, Nang Kwak Gold Trader, Moving Average Basic Cross."
+    }
+  ]
+}
