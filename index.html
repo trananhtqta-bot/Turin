@@ -122,6 +122,7 @@ footer{border-top:1px solid var(--line);background:var(--bg);padding:8px 12px ca
       </select>
       <span class="spacer"></span>
       <button id="btnSummary">Tổng kết</button>
+      <button id="btnToClaude">Gửi Claude</button>
       <button id="btnStop" hidden>Dừng</button>
       <button class="primary" id="btnSend">Gửi</button>
     </div>
@@ -149,6 +150,9 @@ footer{border-top:1px solid var(--line);background:var(--bg);padding:8px 12px ca
     <h3>Những điều đã ghi nhớ (<span id="memCount">0</span>)</h3>
     <p class="note">App tự rút ra sau mỗi lượt thảo luận. Anh thêm, sửa bằng cách xóa và ghi lại.</p>
     <div style="display:flex;gap:8px"><input id="memNew" placeholder="Thêm một điều cần nhớ"><button id="btnAddMem">Thêm</button></div>
+    <h3>Tin từ Claude (<span id="feedCount">0</span>)</h3>
+    <p class="note">Việc Claude đã làm xong. Cả ba AI đều đọc được phần này.</p>
+    <div class="list" id="feedList"></div>
     <div class="list" id="memList"></div>
   </section>
 
@@ -352,6 +356,7 @@ async function fetchModels(){
 /* ---------- prompts ---------- */
 function context(){
   let s = "";
+  if (window.CLAUDE_FEED && window.CLAUDE_FEED.length) s += "\n\nTHÔNG TIN MỚI TỪ CLAUDE (phiên làm việc riêng của anh Anh với Claude; việc này đã làm xong, coi là dữ kiện đã có, đừng làm lại):\n" + window.CLAUDE_FEED.map(f => "• " + f.title + " (" + f.date + "): " + f.text).join("\n\n");
   if (state.profile.trim()) s += "\n\nHỒ SƠ ANH ANH (người hỏi):\n" + state.profile.trim();
   const mem = state.memories.slice(-80);
   if (mem.length) s += "\n\nNHỮNG ĐIỀU ĐÃ GHI NHỚ TỪ CÁC CUỘC THẢO LUẬN TRƯỚC:\n" + mem.map(m => "- " + m.text).join("\n");
@@ -552,6 +557,33 @@ $("btnSaveProfile").onclick = () => { state.profile = $("profile").value; save()
 $("btnAddMem").onclick = () => { const t = $("memNew").value.trim(); if (!t) return; state.memories.push({ id:uid(), text:t, ts:Date.now() }); $("memNew").value = ""; save(); renderMem(); };
 $("btnSaveSettings").onclick = () => { saveSettings(); closePanel(); sys("Đã lưu cài đặt."); };
 $("btnModels").onclick = fetchModels;
+window.CLAUDE_FEED = [];
+async function loadFeed(){
+  try{
+    const r = await fetch("claude-feed.json?t=" + Date.now(), { cache:"no-store" });
+    if (!r.ok) return;
+    const j = await r.json();
+    window.CLAUDE_FEED = (j.items || []).slice(-6).map(f => ({ title:String(f.title || ""), date:String(f.date || ""), text:String(f.text || "").slice(0, 4000) }));
+    $("feedCount").textContent = window.CLAUDE_FEED.length;
+    const box = $("feedList"); box.innerHTML = "";
+    [...window.CLAUDE_FEED].reverse().forEach(f => {
+      const el = document.createElement("div"); el.className = "item";
+      el.innerHTML = '<div class="t"><b>' + esc(f.title) + '</b><div class="d">' + esc(f.date) + '</div>' + esc(f.text.slice(0, 300)) + (f.text.length > 300 ? "…" : "") + '</div>';
+      box.appendChild(el);
+    });
+  }catch(e){ console.warn("feed", e); }
+}
+function sendToClaude(){
+  const c = cur();
+  if (!c || !c.msgs.length){ sys("Chưa có cuộc thảo luận để gửi."); return; }
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  const name = "ban-tron-gui-claude-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + ".json";
+  const blob = new Blob([JSON.stringify({ app:"ban-tron-ai", kind:"gui-claude", exported:d.toISOString(), title:c.title, msgs:c.msgs, profile:state.profile, memories:state.memories.map(m => m.text) }, null, 1)], { type:"application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  sys("Đã lưu " + name + ". Nhắn Claude: xử lý buổi thảo luận mới.");
+}
+$("btnToClaude").onclick = sendToClaude;
 $("btnExport").onclick = exportData;
 $("btnImport").onclick = () => $("fileImport").click();
 $("fileImport").onchange = e => { const f = e.target.files[0]; if (f) importData(f); e.target.value = ""; };
@@ -562,6 +594,7 @@ $("input").addEventListener("input", e => { e.target.style.height = "auto"; e.ta
   const saved = await DB.get("state");
   if (saved && Array.isArray(saved.convos)) state = Object.assign(state, saved);
   renderChat();
+  loadFeed();
   if (!SEATS.some(s => $(KEYID[s]).value)) openPanel("settings");
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
   try{ if (navigator.storage?.persist) navigator.storage.persist(); }catch(e){}
