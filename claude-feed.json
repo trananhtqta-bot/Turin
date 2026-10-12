@@ -1,11 +1,17 @@
 {
-  "version": 1,
+  "version": 2,
   "items": [
     {
       "id": "bots-da-test-20261012",
       "title": "Các bot MQL5 đã test",
       "date": "12/10/2026",
       "text": "Mục đích: anh Anh test bot free MQL5 Market chủ yếu để học phương pháp ra/vào lệnh, không phải để tìm bot qua FTMO sẵn. XAUUSD, mặc định, real ticks, deposit 100k. Kết luận: chưa bot nào đạt chuẩn FTMO 1-Step ở thông số mặc định. Lumen: sạch nhất, gần phương pháp H4 Path của anh nhất (Trung bình). Universal Breakout, MT5Phoenix, Supertrend G5, GoldXLevel, ZigZag Fibo (thang 5 mức): Thấp. The Impossible Gold: loại (SL 2.5 USD, TP 30 USD không chạm, trailing 0.2 USD nhỏ hơn spread, vào lệnh ngược xác suất). Bài học: SL >= 1.5-2x ATR khung vào lệnh; trailing chỉ bật sau >= 1 ATR lời; test bằng tick thật. Chưa test: Purple Wine 3.2, Tulips MT5, RangeBreakout EA, Swing Breakout EA, Delphi Regression EA, GoldUPtrend, Gold Smart Trend EA, Nang Kwak Gold Trader, Moving Average Basic Cross."
+    },
+    {
+      "id": "trang-thai-du-an",
+      "title": "Trạng thái dự án FTMO (cập nhật liên tục)",
+      "date": "12/10/2026",
+      "text": "Mục tiêu: vượt FTMO 1-Step 100k bằng EA trên XAUUSD (MT5, hedging). Luật đã đọc từ ftmo.com ngày 11/10/2026: mục tiêu 10%, lỗ ngày tối đa 3%, lỗ tổng tối đa 10% (trailing cuối ngày), Best Day <= 50% tổng ngày dương. Các câu hỏi anh gửi email cho FTMO về Risk per Trade Idea vẫn chưa được trả lời. Cách làm hiện tại: anh tự chạy bot trong MT5 Strategy Tester, gửi báo cáo xlsx cho Claude phân tích (R-multiple, mô phỏng lỗ ngày và trailing, lỗ nổi từ M5). Phương pháp H4 Path của anh: hướng theo nến H4 05:00-08:00 giờ VN, mục tiêu theo BB/SMA đa khung, lệnh chờ, SL ở đỉnh/đáy nến H4, tối đa 4 lệnh, đóng hết lúc 19:00 VN; việc viết EA H4 Path đang tạm dừng. Việc đang mở: test các bot còn lại; chạy lại Impossible Gold với MaxDrawdown=0 và MaxDailyLoss=0; thử ZigZag Fibo với một mức Fibo; ý tưởng thêm lệnh khi giá tới mốc hòa vốn của Lumen (chưa duyệt). Liên thông: Claude làm việc thông qua máy tính của anh khi máy bật và app Claude mở; kết quả mới được Claude ghi vào mục này. Chưa có gì được coi là đã biên dịch, đã test hay đã qua FTMO."
     }
   ]
 }
