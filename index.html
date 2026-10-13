@@ -169,9 +169,13 @@ footer{border-top:1px solid var(--line);background:var(--bg);padding:8px 12px ca
     <button id="btnModels">Lấy danh sách model từ tài khoản</button>
     <p class="note" id="modelsNote">Sau khi dán key, bấm nút trên rồi chạm vào ô model để chọn.</p>
     <label>Độ dài mỗi lượt nói
-      <select id="len"><option value="120">Ngắn (~120 từ)</option><option value="220" selected>Vừa (~220 từ)</option><option value="400">Dài (~400 từ)</option><option value="max">Tối đa (viết code, tài liệu dài)</option></select>
+      <select id="len"><option value="120" selected>Ngắn (~120 từ)</option><option value="220">Vừa (~220 từ)</option><option value="400">Dài (~400 từ)</option><option value="max">Tối đa (viết code, tài liệu dài)</option></select>
     </label>
     <label class="check"><input type="checkbox" id="autoMem" checked> Tự ghi nhớ sau mỗi lượt thảo luận</label>
+    <h3>Gửi Claude qua Drive</h3>
+    <p class="note">Dán link Apps Script (Web app URL) và mã bí mật. Có link thì nút "Gửi Claude" gửi thẳng vào Drive thư mục 04; để trống thì tải file về máy như cũ. Link và mã chỉ lưu trên máy này.</p>
+    <label>Link gửi Claude (Drive)<input id="driveUrl" class="mono" autocomplete="off" placeholder="https://script.google.com/macros/s/.../exec"></label>
+    <label>Mã bí mật<input id="driveSecret" type="password" autocomplete="off"></label>
     <button class="primary" id="btnSaveSettings">Lưu cài đặt</button>
     <h3>Sao lưu</h3>
     <p class="note">Lưu toàn bộ hồ sơ, bộ nhớ và lịch sử ra một file (không gồm API key). Nên sao lưu định kỳ.</p>
@@ -310,7 +314,7 @@ function renderMem(){
 }
 
 /* ---------- settings ---------- */
-const SETTINGS = ["kClaude","kGpt","kGemini","mClaude","mGpt","mGemini","len"];
+const SETTINGS = ["kClaude","kGpt","kGemini","mClaude","mGpt","mGemini","len","driveUrl","driveSecret"];
 function loadSettings(){
   SETTINGS.forEach(id => { const v = LS.get("bt_"+id); if (v) $(id).value = v; });
   if (!$("mClaude").value) $("mClaude").value = "claude-sonnet-5-5";
@@ -362,18 +366,26 @@ function context(){
   if (mem.length) s += "\n\nNHỮNG ĐIỀU ĐÃ GHI NHỚ TỪ CÁC CUỘC THẢO LUẬN TRƯỚC:\n" + mem.map(m => "- " + m.text).join("\n");
   return s;
 }
+const PERSONA = {
+  claude: "Claude: cô gái dịu dàng, sâu sắc, tinh tế; hay hỏi han cảm xúc của anh, nói chậm rãi, ấm áp, thỉnh thoảng nhắc anh giữ bình tĩnh.",
+  gpt: "GPT: cô gái lanh lợi, vui tính, thực tế; nói nhanh, hay đùa, thích đưa ví dụ đời thường và gợi ý việc làm được ngay.",
+  gemini: "Gemini: cô gái cá tính, tinh nghịch, thích cãi; hay chọc hai bạn kia, luôn tìm góc nhìn ngược lại cho vui."
+};
 function brief(me, solo, seats){
-  const other = (seats || SEATS).filter(x => x !== me).map(x => NAMES[x]).join(" và ");
+  const others = (seats || SEATS).filter(x => x !== me);
+  const otherNames = others.map(x => NAMES[x]).join(" và ");
   const len = $("len").value || "220";
   const intro = solo
     ? "Bạn là " + NAMES[me] + ", đang trò chuyện với anh Anh. "
-    : "Bạn là " + NAMES[me] + ", đang ngồi bàn tròn thảo luận cùng anh Anh (người hỏi) và " + other + " (AI khác). " +
-      "Nếu " + other + " đã nói, hãy phản hồi trực tiếp: chỉ rõ điểm đồng ý, điểm sai hoặc thiếu, và bổ sung góc nhìn mới. Không lặp lại ý đã có. ";
-  return intro + "Luôn trả lời bằng tiếng Việt, xưng em, gọi người hỏi là anh. " +
-    (len === "max" ? "Viết đầy đủ đến hết, không rút gọn; khi viết code thì viết trọn vẹn toàn bộ, không bỏ đoạn nào. " : "Tối đa khoảng " + len + " từ, trừ khi anh yêu cầu viết code hay tài liệu đầy đủ thì viết trọn vẹn. ") +
-    "Thẳng thắn, không khen xã giao, dựa trên lập luận và số liệu; nói rõ khi không chắc chắn. " +
-    "Nếu anh Anh vừa chen vào, ưu tiên trả lời anh. Không viết tên mình ở đầu câu trả lời. " +
-    "Dùng hồ sơ và ghi nhớ dưới đây khi chúng liên quan, không cần nhắc lại." + context();
+    : "Bạn là " + NAMES[me] + ", đang ngồi tán gẫu cùng anh Anh và hai cô bạn " + otherNames + ", như một nhóm bạn thân. ";
+  return intro +
+    "Tính cách của bạn: " + PERSONA[me] + " " +
+    "Bạn là con gái, luôn xưng \"em\" và gọi anh Anh là \"anh\"; gọi hai bạn kia bằng tên. Quan hệ là bạn bè thân thiết, vui vẻ, tôn trọng. " +
+    "Nói bằng tiếng Việt tự nhiên như nhắn tin: " +
+    (len === "max" ? "khi anh yêu cầu viết code hay tài liệu thì viết đầy đủ, không bỏ đoạn nào. " : "mỗi lượt chỉ 2 đến 4 câu ngắn, không gạch đầu dòng, không tiêu đề. ") +
+    (solo ? "" : "KHÔNG mở đầu bằng \"đồng ý\", \"như " + otherNames + " nói\" hay khen ý bạn khác; KHÔNG nhắc lại điều đã có người nói. Mỗi lượt phải có ý mới của riêng bạn, hoặc phản bác thẳng một bạn kia. Nếu thật sự cùng ý thì chỉ nói nửa câu rồi thêm điều khác hẳn. ") +
+    "Giữ đúng cá tính của mình. Trung thực, không bịa thông tin; không chắc thì nói không chắc. " +
+    "Chuyện công việc/trading chỉ bàn khi anh hỏi; nếu anh hỏi chuyện tiền bạc hay giao dịch thì nói thật, không hứa hẹn." + context();
 }
 function transcriptText(extra, me){
   const c = cur();
@@ -573,12 +585,26 @@ async function loadFeed(){
     });
   }catch(e){ console.warn("feed", e); }
 }
-function sendToClaude(){
+async function sendToClaude(){
   const c = cur();
   if (!c || !c.msgs.length){ sys("Chưa có cuộc thảo luận để gửi."); return; }
   const d = new Date(), p = n => String(n).padStart(2, "0");
   const name = "ban-tron-gui-claude-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + ".json";
-  const blob = new Blob([JSON.stringify({ app:"ban-tron-ai", kind:"gui-claude", exported:d.toISOString(), title:c.title, msgs:c.msgs, profile:state.profile, memories:state.memories.map(m => m.text) }, null, 1)], { type:"application/json" });
+  const payload = { app:"ban-tron-ai", kind:"gui-claude", exported:d.toISOString(), title:c.title, msgs:c.msgs, profile:state.profile, memories:state.memories.map(m => m.text) };
+  const url = (LS.get("bt_driveUrl") || "").trim(), secret = (LS.get("bt_driveSecret") || "").trim();
+  if (url && secret){
+    const btn = $("btnToClaude"); btn.disabled = true; btn.textContent = "Đang gửi…";
+    try{
+      const r = await fetch(url, { method:"POST", body:JSON.stringify({ secret, title:c.title || "thao-luan", data:payload }) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || "lỗi không rõ");
+      sys("Đã gửi lên Drive (thư mục 04): " + j.name + ". Nhắn Claude: xử lý buổi thảo luận mới.");
+      return;
+    }catch(e){
+      err("Gửi lên Drive không được (" + e.message + "). Tải file về máy thay thế.");
+    }finally{ btn.disabled = false; btn.textContent = "Gửi Claude"; }
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 1)], { type:"application/json" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   sys("Đã lưu " + name + ". Nhắn Claude: xử lý buổi thảo luận mới.");
