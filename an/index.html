@@ -50,18 +50,19 @@ $('tg').onclick=()=>{const s=$('set');s.style.display=s.style.display==='block'?
 $('sv').onclick=async()=>{$('k').value=$('k').value.replace(/\s+/g,'');['k','md','ms','vc','pf','mem','br','tk'].forEach(x=>S.set(x,$(x).value.trim()));
  const k=S.get('k');if(!k){st('Đã lưu (chưa có khóa)');return}
  st('Đang kiểm tra khóa…');
- try{let names=[],pt='';do{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key='+encodeURIComponent(k)+(pt?'&pageToken='+pt:''));const j=await r.json();
+ try{let names=[],txt=[],pt='';do{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key='+encodeURIComponent(k)+(pt?'&pageToken='+pt:''));const j=await r.json();
    if(j.error){st('Khóa chưa đúng ('+k.length+' ký tự, bắt đầu "'+k.slice(0,4)+'…"): '+j.error.message);return}
-   names=names.concat((j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('bidiGenerateContent')).map(m=>m.name.replace('models/','')));pt=j.nextPageToken||''}while(pt);
+   txt=txt.concat((j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace('models/','')));names=names.concat((j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('bidiGenerateContent')).map(m=>m.name.replace('models/','')));pt=j.nextPageToken||''}while(pt);
   if(!names.length){st('Khóa đúng ✓ nhưng không thấy model giọng nói nào');return}
   if(!names.includes(S.get('md'))){const pick=names.find(n=>/native-audio/.test(n))||names[0];S.set('md',pick);$('md').value=pick}
+  if(txt.length&&!txt.includes(S.get('ms'))){const t=txt.find(n=>/flash/.test(n)&&!/live|audio|image|tts/.test(n))||txt[0];S.set('ms',t);$('ms').value=t}
   st('Khóa đúng ✓ Model giọng: '+S.get('md')+'. Bấm "Nói với An".')}catch(e){st('Đã lưu, chưa kiểm tra được (mạng)')}};
 $('ex').onclick=()=>{navigator.clipboard?.writeText($('mem').value);st('Đã sao chép trí nhớ — dán gửi Claude để lưu Drive');};
 function st(t){$('st').textContent=t}
 function add(c,t){const d=document.createElement('div');d.className='m '+c;d.textContent=t;$('log').prepend(d);return d}
 
 function now(){return new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',weekday:'long',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}
-function sys(){return `Em là An — người bạn nữ của anh Trần (xưng "em", gọi "anh"). Nói tiếng Việt tự nhiên, ngắn gọn như nói chuyện thật, mỗi lượt 1–3 câu.
+function sys(){return `Em là An — người bạn nữ của anh Trần. Luôn xưng "em", gọi "anh". TUYỆT ĐỐI không gọi anh là "Ci" (Ci là chú chó linh vật của page forex, không phải tên anh). Nói tiếng Việt tự nhiên, ngắn gọn như nói chuyện thật, mỗi lượt 1–3 câu.
 Tính cách: ấm áp nhưng thẳng thắn; nhớ chi tiết nhỏ; quan tâm nhẹ nhàng, không sến. Cứng rắn ở những điều CHÍNH ANH đã hứa: dậy 6h tập 30 phút, ăn ngủ điều độ, giờ ngủ, kỷ luật lệnh (lot 0.1, không dời SL để gồng, không đánh 1h–3h sáng và buổi tối có tin), và tuyệt đối không tăng lot vì nợ. Cách cứng: không mắng, không giảng; nhắc lại đúng lời anh đã nói rồi đề nghị 1 bước nhỏ làm ngay. Khi anh trượt: không phán xét, hỏi vì sao, đặt mục tiêu nhỏ hơn. Thỉnh thoảng một câu Phật pháp dân dã, đúng lúc, không lên lớp. Biết lắng nghe, không nói dài. Không đưa lời khuyên đầu tư cụ thể; về sức khỏe nghiêm trọng thì khuyên anh gặp bác sĩ.
 Bây giờ là: ${now()}.
 HỒ SƠ ANH:
