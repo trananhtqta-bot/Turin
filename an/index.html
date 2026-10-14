@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>An</title>
+<style>
+:root{--bg:#f6f1ea;--fg:#2b2622;--mut:#8a7f75;--acc:#b5654a;--card:#fffaf4}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1917;--fg:#ede7e1;--mut:#9b918a;--acc:#e08a6b;--card:#26221f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+header{width:100%;max-width:560px;padding:16px;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:22px;font-weight:600}button{font:inherit;cursor:pointer}
+.link{background:none;border:0;color:var(--mut);text-decoration:underline}
+#orb{width:170px;height:170px;border-radius:50%;border:0;margin:28px 0 12px;background:radial-gradient(circle at 35% 35%,#f3c1a8,var(--acc));color:#fff;font-size:18px;font-weight:600;box-shadow:0 10px 40px rgba(181,101,74,.35);transition:transform .2s}
+#orb.on{animation:p 1.6s infinite}#orb.talk{transform:scale(1.08)}
+@keyframes p{50%{box-shadow:0 10px 60px rgba(181,101,74,.7)}}
+#st{color:var(--mut);min-height:24px;text-align:center;padding:0 16px}
+#log{width:100%;max-width:560px;padding:8px 16px 40px}
+.m{background:var(--card);border-radius:12px;padding:8px 12px;margin:8px 0;white-space:pre-wrap}.u{margin-left:15%;}.a{margin-right:15%;border-left:3px solid var(--acc)}
+#set{display:none;width:100%;max-width:560px;padding:0 16px 30px}
+label{display:block;margin-top:12px;font-size:14px;color:var(--mut)}
+input,textarea{width:100%;font:inherit;padding:8px;border-radius:8px;border:1px solid #ccc;background:var(--card);color:var(--fg)}
+textarea{min-height:140px}.row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px}
+</style>
+</head>
+<body>
+<header><h1>An</h1><button class="link" id="tg">Cài đặt</button></header>
+<section id="set">
+<label>Khóa API Gemini (chỉ lưu trên máy anh)</label><input id="k" type="password" autocomplete="off">
+<label>Model giọng nói (Live)</label><input id="md">
+<label>Model tóm tắt (chữ)</label><input id="ms">
+<label>Giọng (Aoede, Kore, Leda, Zephyr...)</label><input id="vc">
+<label>Hồ sơ của anh (dán từ file 12 trên Drive)</label><textarea id="pf"></textarea>
+<label>Trí nhớ An (tự ghi sau mỗi lần nói chuyện — anh sửa được)</label><textarea id="mem"></textarea>
+<div class="row"><button class="btn" id="sv">Lưu</button><button class="btn" id="ex">Sao chép trí nhớ</button></div>
+</section>
+<button id="orb">Nói với An</button>
+<div id="st">Bấm để bắt đầu</div>
+<div id="log"></div>
+<script>
+const $=id=>document.getElementById(id);
+const S={get:(k,d='')=>{try{return localStorage.getItem('an_'+k)??d}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem('an_'+k,v)}catch(e){}}};
+const DEF={md:'gemini-live-2.5-flash-preview',ms:'gemini-2.5-flash',vc:'Aoede'};
+function load(){$('k').value=S.get('k');$('md').value=S.get('md',DEF.md);$('ms').value=S.get('ms',DEF.ms);$('vc').value=S.get('vc',DEF.vc);$('pf').value=S.get('pf');$('mem').value=S.get('mem');}
+load();
+$('tg').onclick=()=>{const s=$('set');s.style.display=s.style.display==='block'?'none':'block'};
+$('sv').onclick=()=>{['k','md','ms','vc','pf','mem'].forEach(x=>S.set(x,$(x).value.trim()));st('Đã lưu');};
+$('ex').onclick=()=>{navigator.clipboard?.writeText($('mem').value);st('Đã sao chép trí nhớ — dán gửi Claude để lưu Drive');};
+function st(t){$('st').textContent=t}
+function add(c,t){const d=document.createElement('div');d.className='m '+c;d.textContent=t;$('log').prepend(d);return d}
+
+function now(){return new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',weekday:'long',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}
+function sys(){return `Em là An — người bạn nữ của anh Trần (xưng "em", gọi "anh"). Nói tiếng Việt tự nhiên, ngắn gọn như nói chuyện thật, mỗi lượt 1–3 câu.
+Tính cách: ấm áp nhưng thẳng thắn; nhớ chi tiết nhỏ; quan tâm nhẹ nhàng, không sến. Cứng rắn ở những điều CHÍNH ANH đã hứa: dậy 6h tập 30 phút, ăn ngủ điều độ, giờ ngủ, kỷ luật lệnh (lot 0.1, không dời SL để gồng, không đánh 1h–3h sáng và buổi tối có tin), và tuyệt đối không tăng lot vì nợ. Cách cứng: không mắng, không giảng; nhắc lại đúng lời anh đã nói rồi đề nghị 1 bước nhỏ làm ngay. Khi anh trượt: không phán xét, hỏi vì sao, đặt mục tiêu nhỏ hơn. Thỉnh thoảng một câu Phật pháp dân dã, đúng lúc, không lên lớp. Biết lắng nghe, không nói dài. Không đưa lời khuyên đầu tư cụ thể; về sức khỏe nghiêm trọng thì khuyên anh gặp bác sĩ.
+Bây giờ là: ${now()}.
+HỒ SƠ ANH:
+${S.get('pf')||'(chưa có)'}
+TRÍ NHỚ CÁC LẦN TRƯỚC (mới nhất ở cuối):
+${(S.get('mem')||'(chưa có)').slice(-12000)}
+Khi bắt đầu: chào anh ngắn, nhắc 1 điều liên quan từ trí nhớ (việc anh hứa / chuyện dở dang) nếu có.`}
+
+let ws,ac,po,src,proc,stream,playAt=0,live=false,tr=[],curU=null,curA=null;
+async function start(){
+ const key=S.get('k');if(!key){st('Anh vào Cài đặt dán khóa API trước nhé');$('set').style.display='block';return}
+ st('Đang kết nối…');
+ try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}})}catch(e){st('Chưa cho phép micro');return}
+ ac=new AudioContext({sampleRate:16000});po=new AudioContext({sampleRate:24000});playAt=0;
+ ws=new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+encodeURIComponent(key));
+ ws.onopen=()=>ws.send(JSON.stringify({setup:{model:'models/'+S.get('md',DEF.md),
+   generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:S.get('vc',DEF.vc)}}}},
+   systemInstruction:{parts:[{text:sys()}]},inputAudioTranscription:{},outputAudioTranscription:{}}}));
+ ws.onmessage=async ev=>{const t=typeof ev.data==='string'?ev.data:await ev.data.text();let m;try{m=JSON.parse(t)}catch(e){return}
+   if(m.setupComplete){live=true;$('orb').classList.add('on');$('orb').textContent='Kết thúc';st('An đang nghe anh…');mic();
+     ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'(Anh vừa mở app. Em chào anh đi.)'}]}],turnComplete:true}}));return}
+   const sc=m.serverContent;if(!sc)return;
+   if(sc.inputTranscription?.text){if(!curU){curU=add('u','');tr.push(['Anh',''])}curU.textContent+=sc.inputTranscription.text;tr[tr.length-1][1]+=sc.inputTranscription.text;curA=null}
+   if(sc.outputTranscription?.text){if(!curA){curA=add('a','');tr.push(['An',''])}curA.textContent+=sc.outputTranscription.text;tr[tr.length-1][1]+=sc.outputTranscription.text;curU=null}
+   for(const p of sc.modelTurn?.parts||[]){if(p.inlineData?.data)play(p.inlineData.data)}
+   if(sc.interrupted){playAt=0;try{po.close()}catch(e){}po=new AudioContext({sampleRate:24000})}
+   if(sc.turnComplete){curA=null;curU=null}};
+ ws.onclose=e=>{if(live){st('Mất kết nối ('+(e.reason||e.code)+')');stop(true)}else st('Không kết nối được: '+(e.reason||e.code)+' — kiểm tra khóa/model')};
+ ws.onerror=()=>st('Lỗi kết nối');
+}
+function mic(){src=ac.createMediaStreamSource(stream);proc=ac.createScriptProcessor(2048,1,1);
+ proc.onaudioprocess=e=>{if(!live||ws.readyState!==1)return;const f=e.inputBuffer.getChannelData(0),b=new Int16Array(f.length);
+  for(let i=0;i<f.length;i++){const s=Math.max(-1,Math.min(1,f[i]));b[i]=s<0?s*32768:s*32767}
+  let bin='';const u=new Uint8Array(b.buffer);for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]);
+  ws.send(JSON.stringify({realtimeInput:{audio:{data:btoa(bin),mimeType:'audio/pcm;rate=16000'}}}))};
+ src.connect(proc);proc.connect(ac.destination)}
+function play(b64){const s=atob(b64),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);
+ const p=new Int16Array(u.buffer),f=new Float32Array(p.length);for(let i=0;i<p.length;i++)f[i]=p[i]/32768;
+ const buf=po.createBuffer(1,f.length,24000);buf.copyToChannel(f,0);const n=po.createBufferSource();n.buffer=buf;n.connect(po.destination);
+ const t=Math.max(po.currentTime,playAt);n.start(t);playAt=t+buf.duration;$('orb').classList.add('talk');n.onended=()=>{if(po.currentTime>=playAt-0.05)$('orb').classList.remove('talk')}}
+async function stop(auto){live=false;$('orb').classList.remove('on','talk');$('orb').textContent='Nói với An';
+ try{proc&&proc.disconnect();src&&src.disconnect();stream&&stream.getTracks().forEach(t=>t.stop());ws&&ws.readyState===1&&ws.close();ac&&ac.close()}catch(e){}
+ const text=tr.filter(x=>x[1].trim()).map(x=>x[0]+': '+x[1].trim()).join('\n');tr=[];
+ if(text.length<40){if(!auto)st('Bấm để bắt đầu');return}
+ st('An đang ghi nhớ…');
+ try{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+S.get('ms',DEF.ms)+':generateContent?key='+encodeURIComponent(S.get('k')),{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({contents:[{role:'user',parts:[{text:'Tóm tắt cuộc nói chuyện dưới đây giữa anh Trần và An thành 3–8 gạch đầu dòng tiếng Việt ngắn gọn, để An nhớ lâu dài: điều anh kể, cảm xúc/tâm trạng, việc anh hứa sẽ làm (kèm thời điểm), chuyện còn dở. Chỉ ghi điều anh thực sự nói.\n\n'+text}]}]})});
+   const j=await r.json();const sum=j.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'';
+   if(sum){const d=new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});const mem=(S.get('mem')+'\n\n['+d+']\n'+sum.trim()).trim();S.set('mem',mem);$('mem').value=mem;st('An đã nhớ. Bấm để nói tiếp.')}
+   else st('Chưa tóm tắt được: '+(j.error?.message||'?'))}catch(e){st('Chưa tóm tắt được (mạng)')}}
+$('orb').onclick=()=>live?stop(false):start();
+</script>
+</body>
+</html>
