@@ -109,7 +109,8 @@ async function stop(auto){live=false;$('orb').classList.remove('on','talk');$('o
    body:JSON.stringify({contents:[{role:'user',parts:[{text:'Tóm tắt cuộc nói chuyện dưới đây giữa anh Trần và An thành 3–8 gạch đầu dòng tiếng Việt ngắn gọn, để An nhớ lâu dài: điều anh kể, cảm xúc/tâm trạng, việc anh hứa sẽ làm (kèm thời điểm), chuyện còn dở. Chỉ ghi điều anh thực sự nói.\n\n'+text}]}]})});
    const j=await r.json();const sum=j.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'';
    if(sum){const d=new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});const mem=(S.get('mem')+'\n\n['+d+']\n'+sum.trim()).trim();S.set('mem',mem);$('mem').value=mem;st('An đã nhớ. Bấm để nói tiếp.')}
-   else st('Chưa tóm tắt được: '+(j.error?.message||'?'))}catch(e){st('Chưa tóm tắt được (mạng)')}}
+   else{keepRaw(text);st('Chưa tóm tắt được, đã lưu nguyên văn: '+(j.error?.message||'?'))}}catch(e){keepRaw(text);st('Mất mạng — An đã lưu nguyên văn cuộc nói chuyện, không mất gì')}}
+function keepRaw(text){const d=new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});const mem=(S.get('mem')+'\n\n['+d+'] (nguyên văn, chưa tóm tắt)\n'+text.slice(-4000)).trim();S.set('mem',mem);$('mem').value=mem}
 $('orb').onclick=()=>live?stop(false):start();
 </script>
 </body>
