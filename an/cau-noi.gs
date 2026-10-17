@@ -207,25 +207,40 @@ function nhacToi() { nhac_('nhacToi'); }
 function thuNhac() { nhac_('nhac6h'); }        // bấm Chạy để thử An gọi
 function thuPhanTich() { phanTich_('SANG'); }  // bấm Chạy để thử bản tin Tô Tô (cần EA đã gửi số liệu)
 
+function gget_(url, opt) {
+  opt = opt || {}; opt.muteHttpExceptions = true;
+  opt.headers = { 'x-goog-api-key': prop_('GEMINI_KEY') };
+  return UrlFetchApp.fetch(url, opt);
+}
 function mdl_() {
   let m = prop_('GEMINI_MODEL'); if (m) return m;
   try {
-    const j = JSON.parse(UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=' + prop_('GEMINI_KEY'), { muteHttpExceptions: true }).getContentText());
-    const ok = (j.models || []).filter(function (x) { return (x.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && /flash/.test(x.name) && !/live|audio|image|tts|lite/.test(x.name); });
-    m = ok.length ? ok[0].name.replace('models/', '') : 'gemini-2.5-flash';
-  } catch (e) { m = 'gemini-2.5-flash'; }
+    const j = JSON.parse(gget_('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000').getContentText());
+    const ok = (j.models || []).filter(function (x) { return (x.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && /flash/.test(x.name) && !/live|audio|image|tts|lite|preview/.test(x.name); });
+    if (!ok.length) { Logger.log('Khong lay duoc danh sach model: ' + JSON.stringify(j).slice(0, 300)); return 'gemini-2.5-flash'; }
+    m = ok[ok.length - 1].name.replace('models/', '');
+  } catch (e) { Logger.log('Loi lay model: ' + e); return 'gemini-2.5-flash'; }
   setp_('GEMINI_MODEL', m); return m;
 }
 function gemini_(prompt) {
   const key = prop_('GEMINI_KEY'); if (!key) return '';
   try {
-    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + mdl_() + ':generateContent?key=' + key, {
-      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    const r = gget_('https://generativelanguage.googleapis.com/v1beta/models/' + mdl_() + ':generateContent', {
+      method: 'post', contentType: 'application/json',
       payload: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
     });
     const j = JSON.parse(r.getContentText());
-    return ((j.candidates && j.candidates[0].content.parts.map(function (p) { return p.text; }).join('')) || '').trim();
-  } catch (e) { return ''; }
+    const t = ((j.candidates && j.candidates[0].content.parts.map(function (p) { return p.text; }).join('')) || '').trim();
+    if (!t) Logger.log('Gemini loi (' + r.getResponseCode() + '): ' + r.getContentText().slice(0, 400));
+    return t;
+  } catch (e) { Logger.log('Gemini loi: ' + e); return ''; }
+}
+
+// bấm Chạy để thử khóa Gemini: xem kết quả ở Nhật ký thực thi
+function thuGemini() {
+  PropertiesService.getScriptProperties().deleteProperty('GEMINI_MODEL');
+  Logger.log('Model: ' + mdl_());
+  Logger.log('Tra loi: ' + gemini_('Chào anh Trần bằng 1 câu ngắn, xưng em.'));
 }
 
 function nhac_(k) {
