@@ -8,24 +8,34 @@
 <meta name="theme-color" content="#14532d">
 <link rel="icon" href="../icon-192.png">
 <style>
-:root{--bg:#f3f5f1;--fg:#1d2420;--mut:#6b766f;--acc:#1f7a4d;--card:#fff;--up:#1f7a4d;--dn:#c0392b;--line:#e3e7e1}
-@media (prefers-color-scheme:dark){:root{--bg:#121614;--fg:#e8ede9;--mut:#8b968f;--acc:#3fbf7f;--card:#1b211e;--up:#3fbf7f;--dn:#ef6b5e;--line:#2a322d}}
+:root{--bg:#f3f5f1;--fg:#1d2420;--mut:#6b766f;--acc:#1f7a4d;--card:#fff;--up:#1f7a4d;--dn:#c0392b;--line:#e3e7e1;--grid:#eef1ec;--candleUp:#1f9d6b;--candleDn:#d64b3f}
+@media (prefers-color-scheme:dark){:root{--bg:#121614;--fg:#e8ede9;--mut:#8b968f;--acc:#3fbf7f;--card:#1b211e;--up:#3fbf7f;--dn:#ef6b5e;--line:#2a322d;--grid:#20271f;--candleUp:#2fbf84;--candleDn:#e5675b}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
-.wrap{max-width:560px;margin:0 auto;padding:12px 16px 40px}
+.wrap{max-width:600px;margin:0 auto;padding:12px 16px 40px}
 header{display:flex;justify-content:space-between;align-items:center}h1{margin:0;font-size:22px}
 .link{background:none;border:0;color:var(--mut);text-decoration:underline;font:inherit}
-.price{font-size:38px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0 0}
+.price{font-size:36px;font-weight:700;font-variant-numeric:tabular-nums;margin:4px 0 0}
 .sub{color:var(--mut);font-size:13px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
-.lv{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums;padding:2px 0}
+.card h3{margin:0 0 6px;font-size:15px}
+.lv{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums;padding:2px 0}
 .up{color:var(--up)}.dn{color:var(--dn)}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}td,th{padding:3px 2px;text-align:right}th{color:var(--mut);font-weight:500}td:first-child,th:first-child{text-align:left}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:12.5px}td,th{padding:3px 2px;text-align:right}th{color:var(--mut);font-weight:500}td:first-child,th:first-child{text-align:left}
 #alert{display:none;background:#fde8e6;color:#8a1f15;border-radius:12px;padding:10px 12px;margin-top:10px;font-weight:600}
 @media (prefers-color-scheme:dark){#alert{background:#3a1c19;color:#ffb4ab}}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.btn{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:9px 13px;font:inherit;font-weight:600}
 .btn.alt{background:transparent;color:var(--acc);border:1px solid var(--acc)}
-#log{white-space:pre-wrap;font-size:13px;color:var(--mut);max-height:220px;overflow:auto}
+.btn.sm{padding:6px 10px;font-size:13px}
+.tabs{display:flex;gap:6px;margin-bottom:6px}.tabs button{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:4px 10px;font:inherit;font-size:13px}
+.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+canvas{width:100%;height:340px;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--mut);margin-top:4px}.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.plan{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px}
+.plan.sel{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 30%,transparent)}
+.plan b{font-variant-numeric:tabular-nums}
+.ana{white-space:pre-wrap}
+#log{white-space:pre-wrap;font-size:12.5px;color:var(--mut);max-height:220px;overflow:auto}
 #set{display:none}label{display:block;margin-top:8px;font-size:13px;color:var(--mut)}
 input{width:100%;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
 .m{margin:6px 0}.m.a{border-left:3px solid var(--acc);padding-left:8px}
@@ -34,23 +44,40 @@ input{width:100%;font:inherit;padding:8px;border-radius:8px;border:1px solid var
 <body><div class="wrap">
 <header><h1>Tô Tô</h1><button class="link" id="tg">Cài đặt</button></header>
 <section id="set" class="card">
-<div class="sub">Khóa Gemini, cầu nối và mật khẩu dùng chung với An (nhập ở An là đủ). Ở đây chỉ chỉnh giọng Tô Tô.</div>
+<div class="sub">Khóa Gemini, cầu nối, mật khẩu và hồ sơ dùng chung với An (nhập ở An là đủ). Ở đây chỉ chỉnh giọng Tô Tô.</div>
 <label>Giọng Tô Tô (Puck, Charon, Fenrir, Orus...)</label><input id="vc">
 <div class="row"><button class="btn" id="sv">Lưu</button></div>
 </section>
+
 <div class="price" id="px">—</div><div class="sub" id="meta">Đang chờ số liệu từ MT5…</div>
 <div id="alert"></div>
-<div class="card"><b>Cản gần nhất</b><div id="near"></div></div>
-<div class="card"><b>Lệnh đang mở</b><div id="pos" class="sub">—</div></div>
-<div class="card"><table id="tb"></table></div>
+
+<div class="card"><h3 id="anaT">Phân tích</h3><div class="ana sub" id="ana">Chưa có — bản tin sáng 6:30 và sau mỗi nến H1/H4.</div></div>
+
+<div class="card">
+ <div class="tabs" id="tabs"><button data-tf="M15">M15</button><button data-tf="H1" class="on">H1</button><button data-tf="H4">H4</button></div>
+ <canvas id="cv"></canvas>
+ <div class="legend"><span><i style="background:#e0b400"></i>MA50</span><span><i style="background:#9b59b6"></i>MA100</span><span><i style="background:#e74c3c"></i>MA200</span><span><i style="background:#2ecc71"></i>BB</span><span><i style="background:#3498db"></i>Vào</span><span><i style="background:#c0392b"></i>SL</span><span><i style="background:#16a085"></i>TP</span></div>
+</div>
+
+<div class="card"><h3>Phương án (số do máy tính theo luật của anh)</h3><div id="plans" class="sub">—</div>
+ <div class="row"><button class="btn alt sm" id="ngoai">Đứng ngoài</button></div></div>
+
+<div class="card"><h3>Cản gần nhất</h3><div id="near"></div></div>
+<div class="card"><h3>Lệnh đang mở / lệnh chờ</h3><div id="pos" class="sub">—</div></div>
+<div class="card"><h3>Hôm qua chạm đường</h3><div id="yday" class="sub">—</div></div>
+<div class="card"><h3>Tin USD mạnh hôm nay</h3><div id="news" class="sub">—</div></div>
+<div class="card"><h3>Hôm nay</h3><div id="day" class="sub">—</div></div>
+
 <div class="row"><button class="btn" id="talk">Nói với Tô Tô</button><button class="btn alt" id="spk">🔊 Đọc cảnh báo: bật</button></div>
-<div class="card"><b>Nhật ký Tô Tô</b><div id="log"></div></div>
+<div class="card"><h3>Nhật ký Tô Tô</h3><div id="log"></div></div>
 <div id="chat"></div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
 const A=k=>{try{return localStorage.getItem('an_'+k)||''}catch(e){return''}};
 const T={get:(k,d='')=>{try{return localStorage.getItem('toto_'+k)??d}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem('toto_'+k,v)}catch(e){}}};
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 $('vc').value=T.get('vc','Puck');
 $('tg').onclick=()=>{const s=$('set');s.style.display=s.style.display==='block'?'none':'block'};
 $('sv').onclick=()=>{T.set('vc',$('vc').value.trim()||'Puck');$('set').style.display='none'};
@@ -58,41 +85,96 @@ let SPEAK=T.get('spk','1')==='1';const upd=()=>$('spk').textContent='🔊 Đọc
 $('spk').onclick=()=>{SPEAK=!SPEAK;T.set('spk',SPEAK?'1':'0');upd()};
 function say(t){if(!SPEAK||!('speechSynthesis' in window))return;const u=new SpeechSynthesisUtterance(t);u.lang='vi-VN';const v=speechSynthesis.getVoices().find(v=>/vi/i.test(v.lang));if(v)u.voice=v;speechSynthesis.speak(u)}
 const f2=v=>(+v).toFixed(2);
-let FEED=null,LOG='',first=true;
+let STATS='',FEED=null,CHART=null,PLANS=[],HUONG='',ANA=null,Y=null,LOG='',first=true,TFSEL=T.get('tf','H1');
+document.querySelectorAll('#tabs button').forEach(b=>{b.classList.toggle('on',b.dataset.tf===TFSEL);b.onclick=()=>{TFSEL=b.dataset.tf;T.set('tf',TFSEL);document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));draw()}});
 
 function levels(f){const L=[];const nm={ma50:'MA50',ma100:'MA100',ma200:'MA200',bbu:'BB trên',bbm:'BB giữa',bbl:'BB dưới'};
  for(const tf in f.tf)for(const k in nm){const v=+f.tf[tf][k];if(v>0)L.push({n:nm[k]+' '+tf,v})}return L}
 function describe(f){const p=(+f.bid+ +f.ask)/2,L=levels(f);
- const up=L.filter(x=>x.v>p).sort((a,b)=>a.v-b.v).slice(0,4),dn=L.filter(x=>x.v<=p).sort((a,b)=>b.v-a.v).slice(0,4);
- return{p,up,dn}}
+ return{p,up:L.filter(x=>x.v>p).sort((a,b)=>a.v-b.v).slice(0,4),dn:L.filter(x=>x.v<=p).sort((a,b)=>b.v-a.v).slice(0,4)}}
+
 function render(){const f=FEED;if(!f)return;const d=describe(f);
  $('px').textContent=f2(d.p);$('meta').textContent=f.sym+' · '+f.vn+' (giờ VN) · Balance '+(+f.bal).toLocaleString('vi-VN')+' · Equity '+(+f.eq).toLocaleString('vi-VN');
  $('near').innerHTML=d.up.slice().reverse().map(x=>`<div class="lv up"><span>▲ ${x.n}</span><span>${f2(x.v)} (+${f2(x.v-d.p)})</span></div>`).join('')+
   `<div class="lv"><b>Giá</b><b>${f2(d.p)}</b></div>`+d.dn.map(x=>`<div class="lv dn"><span>▼ ${x.n}</span><span>${f2(x.v)} (−${f2(d.p-x.v)})</span></div>`).join('');
- $('pos').innerHTML=f.pos.length?f.pos.map(x=>`<div class="lv"><span>${x.type} ${x.vol} @ ${x.op} · SL ${+x.sl?x.sl:'<b class="dn">CHƯA CÓ</b>'} · TP ${+x.tp?x.tp:'—'}</span><span class="${x.pnl>=0?'up':'dn'}">${x.pnl>=0?'+':''}${x.pnl}$</span></div>`).join(''):'Không có lệnh';
- let h='<tr><th></th><th>MA50</th><th>MA100</th><th>MA200</th><th>BB trên</th><th>BB giữa</th><th>BB dưới</th></tr>';
- for(const tf in f.tf){const r=f.tf[tf];h+=`<tr><td><b>${tf}</b></td><td>${f2(r.ma50)}</td><td>${f2(r.ma100)}</td><td>${f2(r.ma200)}</td><td>${f2(r.bbu)}</td><td>${f2(r.bbm)}</td><td>${f2(r.bbl)}</td></tr>`}
- $('tb').innerHTML=h}
-function stateText(){const f=FEED;if(!f)return'(chưa có số liệu MT5)';const d=describe(f);
- let s=`Giờ VN ${f.vn}. ${f.sym} giá ${f2(d.p)}. Balance ${f.bal}, equity ${f.eq}.\nCản trên: ${d.up.map(x=>x.n+' '+f2(x.v)).join('; ')}.\nCản dưới: ${d.dn.map(x=>x.n+' '+f2(x.v)).join('; ')}.\n`;
- for(const tf in f.tf){const r=f.tf[tf];s+=`${tf}: MA50 ${f2(r.ma50)}, MA100 ${f2(r.ma100)}, MA200 ${f2(r.ma200)}, BB ${f2(r.bbl)}/${f2(r.bbm)}/${f2(r.bbu)}, nến trước mở ${f2(r.po)} đóng ${f2(r.pc)}, nến hiện tại mở ${f2(r.o)}.\n`}
- s+='Lệnh đang mở: '+(f.pos.length?f.pos.map(x=>`${x.type} ${x.vol} @${x.op} SL ${x.sl} TP ${x.tp} lời/lỗ ${x.pnl}$`).join('; '):'không có');return s}
+ const pos=(f.pos||[]).map(x=>`<div class="lv"><span>${x.type} ${x.vol} @ ${x.op} · SL ${+x.sl?x.sl:'chưa có'} · TP ${+x.tp?x.tp:'—'}</span><span class="${x.pnl>=0?'up':'dn'}">${x.pnl>=0?'+':''}${x.pnl}$</span></div>`).join('');
+ const ord=(f.ord||[]).map(x=>`<div class="lv"><span>Chờ ${x.type} ${x.vol} @ ${x.pr}</span><span>SL ${+x.sl?x.sl:'—'} · TP ${+x.tp?x.tp:'—'}</span></div>`).join('');
+ $('pos').innerHTML=(pos+ord)||'Không có lệnh';
+ const dy=f.day||{};$('day').textContent=`${dy.n||0} lệnh đã đóng · thắng ${dy.win||0} · lãi/lỗ ${dy.net||0}$ · vào thêm cùng chiều ${dy.same||0} lần`+(STATS?'\n'+STATS:'');
+ draw()}
+
+function renderPlans(){if(!PLANS.length){$('plans').textContent='Chưa có — có sau bản tin sáng hoặc nến H1 tiếp theo.';return}
+ $('plans').innerHTML=PLANS.map(p=>`<div class="plan ${HUONG===p.id?'sel':''}"><div class="lv"><b class="${p.side==='BUY'?'up':'dn'}">${p.id} · ${p.side} limit ${f2(p.entry)}</b><span>lời/lỗ ${p.rr}</span></div>
+ <div class="sub">${esc(p.zone)}</div><div class="lv"><span>SL <b>${f2(p.sl)}</b></span><span>TP1 <b>${f2(p.tp1)}</b>${p.tp2?' · TP2 <b>'+f2(p.tp2)+'</b>':''}</span></div>
+ <div class="row"><button class="btn sm ${HUONG===p.id?'':'alt'}" data-id="${p.id}">${HUONG===p.id?'Đang theo ✓':'Theo phương án này'}</button></div></div>`).join('');
+ document.querySelectorAll('#plans button[data-id]').forEach(b=>b.onclick=()=>choose(b.dataset.id));
+ $('ngoai').textContent=HUONG==='NGOAI'?'Đang đứng ngoài ✓':'Đứng ngoài'}
+async function choose(h){HUONG=h;renderPlans();draw();const br=A('br');if(!br)return;
+ try{await fetch(br,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({t:A('tk'),a:'huong',h})})}catch(e){}}
+$('ngoai').onclick=()=>choose('NGOAI');
+
+function renderY(){if(!Y||!Y.tf){$('yday').textContent='Chưa có (EA gửi khi sang ngày mới).';return}
+ let h=`<div class="sub">Ngày ${Y.d}: mở ${Y.o} · cao ${Y.h} · thấp ${Y.l} · đóng ${Y.c}</div><table><tr><th>Đường</th><th>Chạm</th><th>Giữ</th><th>Bật TB</th></tr>`;
+ for(const tf of['H4','H1','M15','M5'])(Y.tf[tf]||[]).forEach(x=>h+=`<tr><td>${x.n} ${tf}</td><td>${x.t}</td><td>${x.g}</td><td>${x.g?x.b+' giá':'—'}</td></tr>`);
+ $('yday').innerHTML=h+'</table>'}
+
+// ---- vẽ chart từ số thật MT5 ----
+function draw(){const c=$('cv'),ctx=c.getContext('2d');const W=c.clientWidth,H=c.clientHeight,dpr=devicePixelRatio||1;c.width=W*dpr;c.height=H*dpr;ctx.scale(dpr,dpr);
+ const cs=getComputedStyle(document.documentElement),col=k=>cs.getPropertyValue(k).trim();ctx.clearRect(0,0,W,H);
+ const d=CHART&&CHART[TFSEL];if(!d||!d.c){ctx.fillStyle=col('--mut');ctx.font='13px system-ui';ctx.fillText('Chưa có dữ liệu chart (EA gửi mỗi nến M15).',10,24);return}
+ const n=d.c.length,padR=72,padB=18,cw=(W-padR)/n;
+ const series=['ma50','ma100','ma200','bbu','bbm','bbl'];
+ let lo=Infinity,hi=-Infinity;for(let i=0;i<n;i++){lo=Math.min(lo,d.l[i]);hi=Math.max(hi,d.h[i])}
+ const marks=[];const pl=PLANS.find(p=>p.id===HUONG);if(pl)marks.push([pl.entry,'#3498db','Vào'],[pl.sl,'#c0392b','SL'],[pl.tp1,'#16a085','TP1']);
+ (FEED&&FEED.pos||[]).forEach(x=>{marks.push([+x.op,'#3498db',x.type]);if(+x.sl)marks.push([+x.sl,'#c0392b','SL']);if(+x.tp)marks.push([+x.tp,'#16a085','TP'])});
+ marks.forEach(m=>{if(m[0]>lo-(hi-lo)*.4&&m[0]<hi+(hi-lo)*.4){lo=Math.min(lo,m[0]);hi=Math.max(hi,m[0])}});
+ const pad=(hi-lo)*.06;lo-=pad;hi+=pad;const y=v=>(hi-v)/(hi-lo)*(H-padB);
+ ctx.strokeStyle=col('--grid');ctx.fillStyle=col('--mut');ctx.font='11px system-ui';ctx.lineWidth=1;
+ const step=Math.pow(10,Math.floor(Math.log10((hi-lo)/4)));const st=[1,2,5,10].map(k=>k*step).find(s=>(hi-lo)/s<=6)||step*10;
+ for(let v=Math.ceil(lo/st)*st;v<hi;v+=st){ctx.beginPath();ctx.moveTo(0,y(v));ctx.lineTo(W-padR,y(v));ctx.stroke();ctx.fillText(v.toFixed(st<1?2:0),W-padR+4,y(v)+4)}
+ const colors={ma50:'#e0b400',ma100:'#9b59b6',ma200:'#e74c3c',bbu:'#2ecc71',bbm:'#2ecc71',bbl:'#2ecc71'};
+ series.forEach(s=>{const a=d[s];if(!a)return;ctx.strokeStyle=colors[s];ctx.lineWidth=s==='bbm'?1:1.5;ctx.setLineDash(s==='bbm'?[4,3]:[]);ctx.beginPath();let st2=false;
+  for(let i=0;i<n;i++){const v=a[i];if(!(v>0)){st2=false;continue}const X=i*cw+cw/2,Y2=y(v);if(!st2){ctx.moveTo(X,Y2);st2=true}else ctx.lineTo(X,Y2)}ctx.stroke()});ctx.setLineDash([]);
+ for(let i=0;i<n;i++){const o=d.o[i],c2=d.c[i],X=i*cw+cw/2,upc=c2>=o;ctx.strokeStyle=ctx.fillStyle=upc?col('--candleUp'):col('--candleDn');
+  ctx.beginPath();ctx.moveTo(X,y(d.h[i]));ctx.lineTo(X,y(d.l[i]));ctx.stroke();const bw=Math.max(1,cw*.6),top=y(Math.max(o,c2)),bh=Math.max(1,Math.abs(y(o)-y(c2)));ctx.fillRect(X-bw/2,top,bw,bh)}
+ ctx.font='11px system-ui';let lastY=-99;marks.filter(m=>m[0]>lo&&m[0]<hi).sort((a,b)=>b[0]-a[0]).forEach(([v,cl,lb])=>{const yy=y(v);ctx.strokeStyle=cl;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(W-padR,yy);ctx.stroke();ctx.setLineDash([]);
+  const ly=Math.max(yy,lastY+17);lastY=ly;ctx.fillStyle=cl;ctx.fillRect(W-padR,ly-8,padR,16);ctx.fillStyle='#fff';ctx.fillText(lb+' '+v.toFixed(1),W-padR+2,ly+4)});
+ if(FEED){const p=(+FEED.bid+ +FEED.ask)/2;if(p>lo&&p<hi){ctx.strokeStyle=col('--fg');ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(0,y(p));ctx.lineTo(W-padR,y(p));ctx.stroke();ctx.setLineDash([])}}
+ ctx.fillStyle=col('--mut');ctx.fillText(d.t[0].slice(5),2,H-4);ctx.fillText(d.t[n-1].slice(5),W-padR-90,H-4)}
+addEventListener('resize',draw);
 
 async function poll(){const br=A('br'),tk=A('tk');if(!br){$('meta').textContent='Chưa có cầu nối — anh mở An, vào Cài đặt điền cầu nối trước.';return}
  try{const j=await (await fetch(br+'?p=feed&t='+encodeURIComponent(tk))).json();
   if(j.error){$('meta').textContent='Cầu nối báo: '+j.error;return}
-  if(j.feed){FEED=j.feed;render()}
-  const lg=j.log||'';if(lg!==LOG){const fresh=first?'':lg.slice(LOG.length>0&&lg.startsWith(LOG)?LOG.length:Math.max(0,lg.length-400));LOG=lg;$('log').textContent=lg.split('\n').reverse().join('\n');
-   if(fresh.trim()&&!fresh.includes('(nói chuyện)')){const msg=fresh.trim().split('\n').pop().replace(/^\[[^\]]*\]\s*/,'');$('alert').style.display='block';$('alert').textContent=msg;navigator.vibrate&&navigator.vibrate([400,200,400]);
-    if(live&&ws.readyState===1)ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'(Cảnh báo kỷ luật vừa xảy ra: '+msg+' — nói với anh ngắn gọn ngay.)'}]}],turnComplete:true}}));else say(msg)}}
+  STATS=j.stats||'';PLANS=j.plans||[];HUONG=j.huong||HUONG;if(j.chart)CHART=j.chart;if(j.feed){FEED=j.feed;render()}
+  renderPlans();if(j.y){Y=j.y;renderY()}
+  if(j.ana&&(!ANA||ANA.gio!==j.ana.gio)){const isNew=!!ANA;ANA=j.ana;$('anaT').textContent=(ANA.kieu==='SANG'?'Bản tin sáng':'Sau nến '+ANA.kieu)+' · '+ANA.gio;$('ana').textContent=ANA.text;if(isNew)say(ANA.text.split('\n')[0])}
+  $('news').innerHTML=(j.news||[]).length?j.news.map(n=>`<div class="lv"><span>${esc(n.title)}</span><b>${n.gio}</b></div>`).join(''):'Không có tin USD mạnh hôm nay.';
+  STATS=j.stats||'';
+  const lg=j.log||'';if(lg!==LOG){const fresh=first?'':lg.slice(LOG.length>0&&lg.startsWith(LOG)?LOG.length:Math.max(0,lg.length-400));LOG=lg;
+   $('log').textContent=lg.split('\n').reverse().join('\n');
+   const alerts=fresh.split('\n').filter(l=>l.trim()&&!/INFO\||\(nói chuyện\)/.test(l));
+   if(alerts.length){const msg=alerts.pop().replace(/^\[[^\]]*\]\s*/,'').replace(/^THUA\|([^|]+)\|/,'Lệnh thua — $1: ');$('alert').style.display='block';$('alert').textContent=msg;navigator.vibrate&&navigator.vibrate([400,200,400]);
+    if(live&&ws.readyState===1)ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'(Vừa có nhắc nhở: '+msg+' — nói với anh thật ngắn, nhẹ nhàng.)'}]}],turnComplete:true}}));else say(msg)}}
   first=false}catch(e){$('meta').textContent='Mất kết nối cầu nối, đang thử lại…'}}
-poll();setInterval(poll,5000);
+poll();setInterval(poll,8000);
 
-function sys(){return `Em là Tô Tô — bạn đánh lệnh vàng (XAUUSD) ngồi cạnh anh Trần. Xưng "em", gọi "anh". Nói tiếng Việt, cực ngắn gọn (1–2 câu), như bạn trader thật đang nhìn cùng chart.
-PHƯƠNG PHÁP CỦA ANH (bám đúng, không dạy phương pháp khác): SMA 50/100/200 và Bollinger 20 trên M5, M15, H1, H4, D1. Chạm MA là hay hồi; cản khung lớn khó phá; phá phải chờ nến sau của chính khung đó xác nhận; nến có thể phóng qua chút rồi rút râu. Anh ăn 5–10 giá, TP ở cản MA/BB gần nhất, sắp hết nến M15/H1 thì chốt, dời SL về hòa vốn. Rải lệnh chỉ khi giữa entry và SL tổng có cản (cản sát <4 giá thì gộp đặt giữa).
-LUẬT KỶ LUẬT (nhắc thẳng, không mắng): lot tối đa 0.1 (anh từng mất hơn 3 nghìn vì tăng lot nhồi lệnh); lệnh nào cũng có SL; không dời SL xa ra; thua 2 lệnh cùng hướng thì dừng hướng đó chờ nến H1 sau; tránh 7h sáng, 21–22h, 1–3h sáng và giờ tin tối.
-Mục tiêu: FTMO 1-Step 100k, cần +10%, giới hạn lỗ ngày 3%, lỗ tổng 10%.
-Em chỉ góp ý, quyết định là của anh. Không bịa số: chỉ dùng số liệu MT5 được gửi. Khi anh chào tạm biệt thì chào lại 1 câu.
+function stateText(){const f=FEED;if(!f)return'(chưa có số liệu MT5)';const d=describe(f);
+ let s=`Giờ VN ${f.vn}. ${f.sym} giá ${f2(d.p)}. Balance ${f.bal}, equity ${f.eq}.\nCản trên: ${d.up.map(x=>x.n+' '+f2(x.v)).join('; ')}.\nĐỡ dưới: ${d.dn.map(x=>x.n+' '+f2(x.v)).join('; ')}.\n`;
+ for(const tf in f.tf){const r=f.tf[tf];s+=`${tf}: MA50 ${f2(r.ma50)}, MA100 ${f2(r.ma100)}, MA200 ${f2(r.ma200)}, BB ${f2(r.bbl)}/${f2(r.bbm)}/${f2(r.bbu)}, nến trước mở ${f2(r.po)} đóng ${f2(r.pc)} cao ${f2(r.ph)} thấp ${f2(r.pl)}.\n`}
+ s+='Lệnh đang mở: '+((f.pos||[]).length?f.pos.map(x=>`${x.type} ${x.vol} @${x.op} SL ${x.sl} TP ${x.tp} lời/lỗ ${x.pnl}$`).join('; '):'không có')+'\n';
+ s+='Lệnh chờ: '+((f.ord||[]).length?f.ord.map(x=>`${x.type} @${x.pr}`).join('; '):'không có')+'\n';
+ if(PLANS.length)s+='Phương án hiện tại (số do code tính): '+PLANS.map(p=>`${p.id} ${p.side} ${p.entry} SL ${p.sl} TP1 ${p.tp1}`).join(' | ')+(HUONG?`. Anh đang chọn ${HUONG}.`:'')+'\n';
+ return s}
+
+function sys(){return `Em là Tô Tô — bạn đánh lệnh vàng (XAUUSD) ngồi cạnh anh Trần. Xưng "em", gọi "anh". Nói tiếng Việt, ngắn (1–3 câu), như bạn trader thật đang nhìn cùng chart.
+PHƯƠNG PHÁP CỦA ANH (bám đúng): SMA 50/100/200 và Bollinger 20 trên M5, M15, H1, H4, D1. Chạm MA là hay hồi; cản khung lớn khó phá; phá phải chờ nến sau của chính khung đó xác nhận; nến có thể phóng qua chút rồi rút râu. Anh ăn 5–10 giá, TP ở cản gần, sắp hết nến M15/H1 thì chốt (timing), dời SL về hòa vốn. Nhồi chỉ bằng lệnh limit đặt tại đường MA/BB. Lệnh có lợi thế khi sau lưng có đường đỡ trong 4 giá (số liệu của anh: có đường đỡ lãi, giữa khoảng trống lỗ). Đôi khi anh bỏ SL vài phút cho qua lúc đóng nến rồi đặt lại SL ở râu — tôn trọng, chỉ nhắc nhẹ.
+KỶ LUẬT: lot 0.1 (từng mất hơn 3 nghìn vì tăng lot nhồi lệnh). FTMO 1-Step: mục tiêu +10%, lỗ ngày tối đa 3%, lỗ tổng 10%.
+Em chỉ góp ý, quyết định là của anh. KHÔNG bịa số: chỉ dùng số liệu MT5 và phương án do code tính được gửi kèm. Khi anh chào tạm biệt thì chào lại 1 câu.
+HỒ SƠ ANH: ${(A('pf')||'').slice(0,2500)}
+PHÂN TÍCH GẦN NHẤT: ${ANA?ANA.text:'(chưa có)'}
+NHẬT KÝ TÔ TÔ GẦN ĐÂY (lệnh, lý do thua, nhắc nhở):
+${LOG.slice(-2500)}
 SỐ LIỆU MT5 HIỆN TẠI:
 ${stateText()}`}
 
@@ -105,7 +187,7 @@ async function start(){const key=A('k');if(!key){alert('Anh mở An, vào Cài �
  ws.onopen=()=>ws.send(JSON.stringify({setup:{model:'models/'+(A('md')||'gemini-live-2.5-flash-preview'),generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:T.get('vc','Puck')}}}},systemInstruction:{parts:[{text:sys()}]},inputAudioTranscription:{},outputAudioTranscription:{}}}));
  ws.onmessage=async ev=>{const t=typeof ev.data==='string'?ev.data:await ev.data.text();let m;try{m=JSON.parse(t)}catch(e){return}
   if(m.setupComplete){live=true;$('talk').textContent='Kết thúc';mic();
-   ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'(Anh vừa mở Tô Tô. Chào ngắn và nói 1 câu về vị trí giá so với cản gần nhất.)'}]}],turnComplete:true}}));
+   ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'(Anh vừa mở Tô Tô. Chào ngắn, nói 1 câu giá đang ở đâu so với vùng gần nhất và phương án đang có.)'}]}],turnComplete:true}}));
    tick=setInterval(()=>{if(live&&ws.readyState===1)ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'(Cập nhật số liệu, KHÔNG cần trả lời:\n'+stateText()+')'}]}],turnComplete:false}}))},30000);return}
   const sc=m.serverContent;if(!sc)return;
   if(sc.inputTranscription?.text){if(!curU){curU=add('u','');tr.push(['Anh',''])}curU.textContent+=sc.inputTranscription.text;tr[tr.length-1][1]+=sc.inputTranscription.text;curA=null;if(/t[aạ]m bi[eệ]t|\bbye\b|th[oô]i nh[eé]|anh [dđ]i [dđ][aâ]y/i.test(curU.textContent))BYE=true}
@@ -128,6 +210,7 @@ function stop(){live=false;clearInterval(tick);$('talk').textContent='Nói với
  const text=tr.filter(x=>x[1].trim()).map(x=>x[0]+': '+x[1].trim()).join('\n');tr=[];
  if(text.length>40&&A('br'))fetch(A('br'),{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({t:A('tk'),a:'toto',text:'['+new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})+'] (nói chuyện)\n'+text.slice(-3000)})}).catch(()=>{})}
 $('talk').onclick=()=>live?stop():start();
+draw();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
