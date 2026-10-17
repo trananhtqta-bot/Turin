@@ -6,7 +6,7 @@
 //|   https://script.google.com                                       |
 //|   https://script.googleusercontent.com                            |
 //+------------------------------------------------------------------+
-#property version   "2.01"
+#property version   "2.02"
 #property strict
 
 input string InpUrl        = "";     // URL cầu nối Apps Script (…/exec)
@@ -78,11 +78,19 @@ int OnInit()
       hBB[i]   =iBands(_Symbol,TF[i],20,0,2.0,PRICE_CLOSE);
    }
    ScanPositions(true); ScanOrders(true);
+   Ping("https://www.google.com");
+   Ping(InpUrl+"?p=ping");
    EventSetTimer(1);
    return INIT_SUCCEEDED;
 }
 void OnDeinit(const int r){ EventKillTimer(); }
 
+void Ping(string url)
+{
+   char d[], r[]; string h; ResetLastError();
+   int c=WebRequest("GET",url,"",15000,d,r,h);
+   Print("ToTo_Feed PING ",StringSubstr(url,0,45)," -> ",c," err=",GetLastError()," | ",CharArrayToString(r,0,MathMin(ArraySize(r),120),CP_UTF8));
+}
 int FindP(ulong tk){ for(int i=0;i<ArraySize(P_tk);i++) if(P_tk[i]==tk) return i; return -1; }
 void AddP(ulong tk,long ty,double vol,double op,double sl,bool sup)
 {
@@ -361,7 +369,7 @@ void Send()
    if(code!=200 || StringFind(ans,"error")>=0)
    {
       g_lastSend=TimeCurrent();
-      Print("ToTo_Feed: cầu nối trả về ",code," | ",ans);
+      Print("ToTo_Feed: cầu nối trả về ",code," err=",GetLastError()," dài=",n-1," | ",ans);
       return;
    }
    if(!g_okOnce){ g_okOnce=true; Print("ToTo_Feed: đã nối thông cầu nối (",code,") | ",ans); }
