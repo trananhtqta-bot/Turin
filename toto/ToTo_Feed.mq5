@@ -6,7 +6,7 @@
 //|   https://script.google.com                                       |
 //|   https://script.googleusercontent.com                            |
 //+------------------------------------------------------------------+
-#property version   "2.02"
+#property version   "2.03"
 #property strict
 
 input string InpUrl        = "";     // URL cầu nối Apps Script (…/exec)
@@ -80,6 +80,7 @@ int OnInit()
    ScanPositions(true); ScanOrders(true);
    Ping("https://script.google.com");
    Ping(InpUrl+"?p=ping");
+   PingPost(50); PingPost(5000); PingPost(26000);
    EventSetTimer(1);
    return INIT_SUCCEEDED;
 }
@@ -89,7 +90,16 @@ void Ping(string url)
 {
    char d[], r[]; string h; ResetLastError();
    int c=WebRequest("GET",url,"",15000,d,r,h);
-   Print("ToTo_Feed PING ",StringSubstr(url,0,45)," -> ",c," err=",GetLastError()," | ",CharArrayToString(r,0,MathMin(ArraySize(r),120),CP_UTF8));
+   string a=(ArraySize(r)>0)?CharArrayToString(r,0,MathMin(ArraySize(r),120),CP_UTF8):""; StringReplace(a,"\n"," ");
+   Print("ToTo_Feed PING ",StringSubstr(url,0,45)," -> ",c," | ",a);
+}
+void PingPost(int len)
+{
+   string b="{\"t\":\"x\",\"a\":\"ping\",\"pad\":\""; while(StringLen(b)<len) b+="xxxxxxxxxx"; b+="\"}";
+   char d[], r[]; string h; int n=StringToCharArray(b,d,0,WHOLE_ARRAY,CP_UTF8); if(n>0) ArrayResize(d,n-1);
+   int c=WebRequest("POST",InpUrl,"Content-Type: text/plain\r\n",15000,d,r,h);
+   string a=(ArraySize(r)>0)?CharArrayToString(r,0,MathMin(ArraySize(r),120),CP_UTF8):""; StringReplace(a,"\n"," ");
+   Print("ToTo_Feed PINGPOST len=",len," -> ",c," | ",a);
 }
 int FindP(ulong tk){ for(int i=0;i<ArraySize(P_tk);i++) if(P_tk[i]==tk) return i; return -1; }
 void AddP(ulong tk,long ty,double vol,double op,double sl,bool sup)
