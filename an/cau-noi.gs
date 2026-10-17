@@ -206,6 +206,7 @@ function nhacTrua() { nhac_('nhacTrua'); }
 function nhacChieu() { nhac_('nhacChieu'); }
 function nhacToi() { nhac_('nhacToi'); }
 function thuNhac() { nhac_('nhac6h'); }        // bấm Chạy để thử An gọi
+function thuNtfy() { ntfy_('Thu ntfy', 'Neu anh thay tin nay la ntfy chay roi.', AN_URL, 4); }
 function thuPhanTich() { phanTich_('SANG'); }  // bấm Chạy để thử bản tin Tô Tô (cần EA đã gửi số liệu)
 
 function gget_(url, opt) {
@@ -258,7 +259,10 @@ function nhac_(k) {
 function ntfy_(title, msg, click, prio) {
   const topic = prop_('NTFY_TOPIC'); if (!topic) return;
   const q = '?title=' + encodeURIComponent(title) + '&priority=' + prio + '&tags=' + (click === AN_URL + '?goi=1' ? 'telephone_receiver' : 'chart_with_upwards_trend') + '&click=' + encodeURIComponent(click);
-  try { UrlFetchApp.fetch('https://ntfy.sh/' + topic + q, { method: 'post', payload: msg, muteHttpExceptions: true }); } catch (e) { }
+  try {
+    const r = UrlFetchApp.fetch('https://ntfy.sh/' + topic + q, { method: 'post', payload: msg, muteHttpExceptions: true });
+    Logger.log('ntfy ' + topic + ' -> ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 200));
+  } catch (e) { Logger.log('ntfy loi: ' + e); }
 }
 
 // Chạy hàm này 1 LẦN: lịch An (6:00, 11:30, 17:30, 22:30 ±15') + nhịp 1 phút cho Tô Tô
