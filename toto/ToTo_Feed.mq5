@@ -6,7 +6,7 @@
 //|   https://script.google.com                                       |
 //|   https://script.googleusercontent.com                            |
 //+------------------------------------------------------------------+
-#property version   "2.00"
+#property version   "2.01"
 #property strict
 
 input string InpUrl        = "";     // URL cầu nối Apps Script (…/exec)
@@ -34,6 +34,7 @@ ulong    L_tk[];  long L_dir[];  double L_op[], L_cp[], L_net[], L_vol[];  bool 
 ulong    O_tk[];
 // ---- ngày ----
 int      g_day = -1;  bool g_w1 = false, g_w2 = false;  int g_sameDir = 0, g_wins = 0, g_n = 0;  double g_net = 0;
+bool g_okOnce = false;
 datetime g_lastSend = 0, g_lastM15 = 0, g_lastH1 = 0, g_lastH4 = 0;
 bool     g_newH1 = false, g_newH4 = false, g_sendChart = true, g_sendY = true;
 string   g_ev = "";
@@ -355,7 +356,15 @@ void Send()
    int n=StringToCharArray(body,data,0,WHOLE_ARRAY,CP_UTF8); if(n>0) ArrayResize(data,n-1);
    ResetLastError();
    int code=WebRequest("POST",InpUrl,"Content-Type: text/plain\r\n",15000,data,res,rh);
-   if(code==-1){ Print("ToTo_Feed: WebRequest lỗi ",GetLastError()," — kiểm tra Allow WebRequest cho script.google.com"); return; }
+   if(code==-1){ g_lastSend=TimeCurrent(); Print("ToTo_Feed: WebRequest lỗi ",GetLastError()," — kiểm tra Allow WebRequest cho script.google.com"); return; }
+   string ans=CharArrayToString(res,0,MathMin(ArraySize(res),300),CP_UTF8);
+   if(code!=200 || StringFind(ans,"error")>=0)
+   {
+      g_lastSend=TimeCurrent();
+      Print("ToTo_Feed: cầu nối trả về ",code," | ",ans);
+      return;
+   }
+   if(!g_okOnce){ g_okOnce=true; Print("ToTo_Feed: đã nối thông cầu nối (",code,") | ",ans); }
    g_ev=""; g_lastSend=TimeCurrent(); g_newH1=false; g_newH4=false; g_sendChart=false; g_sendY=false;
 }
 
