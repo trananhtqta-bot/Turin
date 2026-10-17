@@ -1,6 +1,6 @@
 // CẦU NỐI AN + TÔ TÔ <-> CLAUDE (Google Apps Script) — bản 3 (17/10/2026)
 // Dán TOÀN BỘ vào Apps Script. Mật khẩu đặt 1 lần trong Thuộc tính tập lệnh: MAT_KHAU (không cần sửa code mỗi lần dán).
-// Thuộc tính tập lệnh (Cài đặt dự án): MAT_KHAU = mật khẩu cầu nối ; GEMINI_KEY = khóa Gemini ; NTFY_TOPIC = tên kênh ntfy
+// Thuộc tính tập lệnh (Cài đặt dự án): MAT_KHAU = mật khẩu cầu nối ; GEMINI_KEY = khóa Gemini ; NTFY_TOPIC = tên kênh ntfy ; NTFY_TOKEN = mã truy cập tài khoản ntfy (tk_...)
 // Sau khi dán: chạy hàm caiDatLich 1 lần (cài lịch An + nhịp 1 phút của Tô Tô).
 const MAT_KHAU = PropertiesService.getScriptProperties().getProperty('MAT_KHAU') || 'DOI_CHU_NAY'; // mật khẩu lấy từ Thuộc tính tập lệnh
 function saiMK_(t) { return MAT_KHAU === 'DOI_CHU_NAY' || t !== MAT_KHAU; } // chưa đặt mật khẩu thì từ chối hết
@@ -259,10 +259,16 @@ function nhac_(k) {
 function ntfy_(title, msg, click, prio) {
   const topic = prop_('NTFY_TOPIC'); if (!topic) return;
   const q = '?title=' + encodeURIComponent(title) + '&priority=' + prio + '&tags=' + (click === AN_URL + '?goi=1' ? 'telephone_receiver' : 'chart_with_upwards_trend') + '&click=' + encodeURIComponent(click);
+  let ok = false;
   try {
-    const r = UrlFetchApp.fetch('https://ntfy.sh/' + topic + q, { method: 'post', payload: msg, muteHttpExceptions: true });
+    const opt = { method: 'post', payload: msg, muteHttpExceptions: true };
+    const tk = prop_('NTFY_TOKEN'); if (tk) opt.headers = { Authorization: 'Bearer ' + tk };
+    const r = UrlFetchApp.fetch('https://ntfy.sh/' + topic + q, opt);
+    ok = r.getResponseCode() === 200;
     Logger.log('ntfy ' + topic + ' -> ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 200));
   } catch (e) { Logger.log('ntfy loi: ' + e); }
+  // ntfy hỏng -> gửi Gmail cho chính anh (dự phòng)
+  if (!ok) try { MailApp.sendEmail(Session.getEffectiveUser().getEmail(), '[An/Tô Tô] ' + title, msg + '\n\n' + (click || '')); } catch (e) { Logger.log('mail loi: ' + e); }
 }
 
 // Chạy hàm này 1 LẦN: lịch An (6:00, 11:30, 17:30, 22:30 ±15') + nhịp 1 phút cho Tô Tô
