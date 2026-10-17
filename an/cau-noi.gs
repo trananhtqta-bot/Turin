@@ -1,8 +1,9 @@
 // CẦU NỐI AN + TÔ TÔ <-> CLAUDE (Google Apps Script) — bản 3 (17/10/2026)
-// Dán TOÀN BỘ vào Apps Script, rồi SỬA DÒNG MAT_KHAU NGAY TRONG APPS SCRIPT (không sửa trên GitHub).
-// Thuộc tính tập lệnh (Cài đặt dự án): GEMINI_KEY = khóa Gemini ; NTFY_TOPIC = tên kênh ntfy
+// Dán TOÀN BỘ vào Apps Script. Mật khẩu đặt 1 lần trong Thuộc tính tập lệnh: MAT_KHAU (không cần sửa code mỗi lần dán).
+// Thuộc tính tập lệnh (Cài đặt dự án): MAT_KHAU = mật khẩu cầu nối ; GEMINI_KEY = khóa Gemini ; NTFY_TOPIC = tên kênh ntfy
 // Sau khi dán: chạy hàm caiDatLich 1 lần (cài lịch An + nhịp 1 phút của Tô Tô).
-const MAT_KHAU = 'DOI_CHU_NAY'; // KHÔNG ghi mật khẩu thật ở đây — chỉ sửa trong Apps Script
+const MAT_KHAU = PropertiesService.getScriptProperties().getProperty('MAT_KHAU') || 'DOI_CHU_NAY'; // mật khẩu lấy từ Thuộc tính tập lệnh
+function saiMK_(t) { return MAT_KHAU === 'DOI_CHU_NAY' || t !== MAT_KHAU; } // chưa đặt mật khẩu thì từ chối hết
 const THU_MUC = '160WG2YyRyXsb5RJE7-IN7QvksF1YBo6r'; // thư mục FTMO_QUANT_LAB
 const AN_URL = 'https://trananhtqta-bot.github.io/Turin/an/';
 const TOTO_URL = 'https://trananhtqta-bot.github.io/Turin/toto/';
@@ -28,7 +29,7 @@ function cput_(k, v) { try { C_().put(k, JSON.stringify(v), 21600); } catch (e) 
 
 // ---------- web app ----------
 function doGet(e) {
-  if (e.parameter.t !== MAT_KHAU) return out_({ error: 'sai mat khau' });
+  if (saiMK_(e.parameter.t)) return out_({ error: 'sai mat khau' });
   if (e.parameter.p === 'feed') {
     return out_({
       feed: cget_('feed'), chart: cget_('chart'), y: getj_('Y', null), ana: cget_('ana') || getj_('ANA', null),
@@ -41,7 +42,7 @@ function doGet(e) {
 
 function doPost(e) {
   const d = JSON.parse(e.postData.contents || '{}');
-  if (d.t !== MAT_KHAU) return out_({ error: 'sai mat khau' });
+  if (saiMK_(d.t)) return out_({ error: 'sai mat khau' });
   if (d.a === 'feed') { nhanFeed_(d); return out_({ ok: true }); }
   if (d.a === 'huong') {                       // anh chọn phương án trên Tô Tô
     setp_('HUONG', d.h || ''); cput_('HUONG', d.h || ''); P.deleteProperty('GAN_DA_BAO');
