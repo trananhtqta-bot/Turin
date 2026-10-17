@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>An</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#b5654a">
+<link rel="icon" href="../icon-192.png">
 <style>
 :root{--bg:#f6f1ea;--fg:#2b2622;--mut:#8a7f75;--acc:#b5654a;--card:#fffaf4}
 @media (prefers-color-scheme:dark){:root{--bg:#1c1917;--fg:#ede7e1;--mut:#9b918a;--acc:#e08a6b;--card:#26221f}}
@@ -22,9 +25,16 @@ label{display:block;margin-top:12px;font-size:14px;color:var(--mut)}
 input,textarea{width:100%;font:inherit;padding:8px;border-radius:8px;border:1px solid #ccc;background:var(--card);color:var(--fg)}
 textarea{min-height:140px}.row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px}
+#call{position:fixed;inset:0;background:linear-gradient(#3a2a24,#1c1917);color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:9;padding:24px;text-align:center}
+#call .av{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f3c1a8,#b5654a);animation:p 1.4s infinite}
+#call .msg{max-width:420px;opacity:.85}
+#call .acts{display:flex;gap:48px;margin-top:24px}
+#call button{width:76px;height:76px;border-radius:50%;border:0;font-size:15px;color:#fff;font-weight:600}
+#nghe{background:#2e9e5b}#tu{background:#c7413a}
 </style>
 </head>
 <body>
+<div id="call"><div class="av"></div><div style="font-size:26px;font-weight:600">An đang gọi…</div><div class="msg" id="cmsg"></div><div class="acts"><button id="tu">Từ chối</button><button id="nghe">Nghe</button></div></div>
 <header><h1>An</h1><button class="link" id="tg">Cài đặt</button></header>
 <section id="set">
 <label>Khóa API Gemini (chỉ lưu trên máy anh)</label><input id="k" type="password" autocomplete="off">
@@ -71,13 +81,15 @@ GHI CHÚ MỚI TỪ CLAUDE (thư ký của anh — tin tưởng, dùng khi hợp
 ${NOTES||'(không có)'}
 TRÍ NHỚ CÁC LẦN TRƯỚC (mới nhất ở cuối):
 ${(S.get('mem')||'(chưa có)').slice(-12000)}
+Khi anh chào tạm biệt (vd "thôi nhé", "tạm biệt", "bye", "anh đi đây"): chào lại thật ngắn 1 câu rồi thôi.
+${CALLMSG?"Em vừa GỌI anh để nhắc: \""+CALLMSG+"\". Mở đầu bằng đúng ý lời nhắc đó (nói tự nhiên như vừa gọi điện), rồi trò chuyện.":""}
 Khi bắt đầu: chào anh ngắn, nhắc 1 điều liên quan từ trí nhớ (việc anh hứa / chuyện dở dang) nếu có.`}
 
-let NOTES='';let ws,ac,po,src,proc,stream,playAt=0,live=false,tr=[],curU=null,curA=null;
+let NOTES='',CALLMSG='',BYE=false;let ws,ac,po,src,proc,stream,playAt=0,live=false,tr=[],curU=null,curA=null;
 async function start(){
  const key=S.get('k');if(!key){st('Anh vào Cài đặt dán khóa API trước nhé');$('set').style.display='block';return}
  st('Đang kết nối…');
- if(S.get('br')){try{const r=await fetch(S.get('br')+'?t='+encodeURIComponent(S.get('tk')));const j=await r.json();if(!j.error){NOTES=(j.notes||'').slice(-6000);if((j.mem||'').length>(S.get('mem')||'').length){S.set('mem',j.mem);$('mem').value=j.mem}}}catch(e){}}
+ if(S.get('br')){try{const r=await fetch(S.get('br')+'?t='+encodeURIComponent(S.get('tk')));const j=await r.json();if(!j.error){NOTES=(j.notes||'').slice(-6000);if(GOI&&j.nhac)CALLMSG=(j.nhac.split(' | ')[1]||'');if((j.mem||'').length>(S.get('mem')||'').length){S.set('mem',j.mem);$('mem').value=j.mem}}}catch(e){}}
  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}})}catch(e){st('Chưa cho phép micro');return}
  ac=new AudioContext({sampleRate:16000});po=new AudioContext({sampleRate:24000});playAt=0;
  ws=new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+encodeURIComponent(key));
@@ -86,13 +98,13 @@ async function start(){
    systemInstruction:{parts:[{text:sys()}]},inputAudioTranscription:{},outputAudioTranscription:{}}}));
  ws.onmessage=async ev=>{const t=typeof ev.data==='string'?ev.data:await ev.data.text();let m;try{m=JSON.parse(t)}catch(e){return}
    if(m.setupComplete){live=true;$('orb').classList.add('on');$('orb').textContent='Kết thúc';st('An đang nghe anh…');mic();
-     ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'(Anh vừa mở app. Em chào anh đi.)'}]}],turnComplete:true}}));return}
+     ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:(CALLMSG?'(Anh vừa nghe máy.)':'(Anh vừa mở app. Em chào anh đi.)')}]}],turnComplete:true}}));return}
    const sc=m.serverContent;if(!sc)return;
-   if(sc.inputTranscription?.text){if(!curU){curU=add('u','');tr.push(['Anh',''])}curU.textContent+=sc.inputTranscription.text;tr[tr.length-1][1]+=sc.inputTranscription.text;curA=null}
+   if(sc.inputTranscription?.text){if(!curU){curU=add('u','');tr.push(['Anh',''])}curU.textContent+=sc.inputTranscription.text;tr[tr.length-1][1]+=sc.inputTranscription.text;curA=null;if(/t[aạ]m bi[eệ]t|\bbye\b|th[oô]i nh[eé]|anh [dđ]i [dđ][aâ]y|ch[aà]o em nh[eé]|th[oô]i em nh[eé]/i.test(curU.textContent))BYE=true}
    if(sc.outputTranscription?.text){if(!curA){curA=add('a','');tr.push(['An',''])}curA.textContent+=sc.outputTranscription.text;tr[tr.length-1][1]+=sc.outputTranscription.text;curU=null}
    for(const p of sc.modelTurn?.parts||[]){if(p.inlineData?.data)play(p.inlineData.data)}
    if(sc.interrupted){playAt=0;try{po.close()}catch(e){}po=new AudioContext({sampleRate:24000})}
-   if(sc.turnComplete){curA=null;curU=null}};
+   if(sc.turnComplete){curA=null;curU=null;if(BYE){BYE=false;const w=Math.max(0,(playAt-po.currentTime)*1000)+700;setTimeout(()=>{if(live)stop(false)},w)}}};
  ws.onclose=e=>{if(live){st('Mất kết nối ('+(e.reason||e.code)+')');stop(true)}else st('Không kết nối được: '+(e.reason||e.code)+' — kiểm tra khóa/model')};
  ws.onerror=()=>st('Lỗi kết nối');
 }
@@ -106,7 +118,7 @@ function play(b64){const s=atob(b64),u=new Uint8Array(s.length);for(let i=0;i<s.
  const p=new Int16Array(u.buffer),f=new Float32Array(p.length);for(let i=0;i<p.length;i++)f[i]=p[i]/32768;
  const buf=po.createBuffer(1,f.length,24000);buf.copyToChannel(f,0);const n=po.createBufferSource();n.buffer=buf;n.connect(po.destination);
  const t=Math.max(po.currentTime,playAt);n.start(t);playAt=t+buf.duration;$('orb').classList.add('talk');n.onended=()=>{if(po.currentTime>=playAt-0.05)$('orb').classList.remove('talk')}}
-async function stop(auto){live=false;$('orb').classList.remove('on','talk');$('orb').textContent='Nói với An';
+async function stop(auto){live=false;BYE=false;CALLMSG='';$('orb').classList.remove('on','talk');$('orb').textContent='Nói với An';
  try{proc&&proc.disconnect();src&&src.disconnect();stream&&stream.getTracks().forEach(t=>t.stop());ws&&ws.readyState===1&&ws.close();ac&&ac.close()}catch(e){}
  const text=tr.filter(x=>x[1].trim()).map(x=>x[0]+': '+x[1].trim()).join('\n');tr=[];
  if(text.length<40){if(!auto)st('Bấm để bắt đầu');return}
@@ -119,6 +131,12 @@ async function stop(auto){live=false;$('orb').classList.remove('on','talk');$('o
 function keepRaw(text){const d=new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});const mem=(S.get('mem')+'\n\n['+d+'] (nguyên văn, chưa tóm tắt)\n'+text.slice(-4000)).trim();S.set('mem',mem);$('mem').value=mem;push('['+d+'] (nguyên văn)\n'+text.slice(-4000))}
 function push(t){if(!S.get('br'))return;fetch(S.get('br'),{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({t:S.get('tk'),text:t})}).catch(()=>{})}
 $('orb').onclick=()=>live?stop(false):start();
+const GOI=new URLSearchParams(location.search).has('goi');
+if(GOI){$('call').style.display='flex';navigator.vibrate&&navigator.vibrate([600,300,600,300,600]);
+ if(S.get('br'))fetch(S.get('br')+'?t='+encodeURIComponent(S.get('tk'))).then(r=>r.json()).then(j=>{if(j.nhac)$('cmsg').textContent=j.nhac.split(' | ')[1]||''}).catch(()=>{});
+ $('nghe').onclick=()=>{$('call').style.display='none';history.replaceState(null,'',location.pathname);start()};
+ $('tu').onclick=()=>{$('call').style.display='none';history.replaceState(null,'',location.pathname);st('Anh đã từ chối cuộc gọi. Bấm khi nào rảnh nhé.')}}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
