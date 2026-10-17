@@ -28,7 +28,11 @@ function cget_(k) { try { return JSON.parse(C_().get(k) || 'null'); } catch (e) 
 function cput_(k, v) { try { C_().put(k, JSON.stringify(v), 21600); } catch (e) { } }
 
 // ---------- web app ----------
+function cham_(k, x) { try { P.setProperty('CHAM_' + k, gio_('dd/MM HH:mm:ss') + ' ' + x); } catch (er) { } }
+function xemCham() { ['GET', 'POST'].forEach(function (k) { Logger.log(k + ': ' + (P.getProperty('CHAM_' + k) || 'chưa có')); }); }
+
 function doGet(e) {
+  cham_('GET', (e.parameter.p || '') + (saiMK_(e.parameter.t) ? ' sai-mk' : ' ok'));
   if (saiMK_(e.parameter.t)) return out_({ error: 'sai mat khau' });
   if (e.parameter.p === 'feed') {
     return out_({
@@ -41,7 +45,9 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const d = JSON.parse(e.postData.contents || '{}');
+  let d = {};
+  try { d = JSON.parse(e.postData.contents || '{}'); } catch (er) { cham_('POST', 'json loi ' + (e.postData ? e.postData.contents.length : 0)); return out_({ error: 'json' }); }
+  cham_('POST', (d.a || '') + ' dai=' + e.postData.contents.length + (saiMK_(d.t) ? ' sai-mk' : ' ok'));
   if (saiMK_(d.t)) return out_({ error: 'sai mat khau' });
   if (d.a === 'feed') { nhanFeed_(d); return out_({ ok: true }); }
   if (d.a === 'huong') {                       // anh chọn phương án trên Tô Tô
