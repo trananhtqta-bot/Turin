@@ -299,13 +299,17 @@ function nhac_(k) {
 
 function ntfy_(title, msg, click, prio) {
   const topic = prop_('NTFY_TOPIC'); if (!topic) return;
-  const q = '?title=' + encodeURIComponent(title) + '&priority=' + prio + '&tags=' + (click === AN_URL + '?goi=1' ? 'telephone_receiver' : 'chart_with_upwards_trend') + '&click=' + encodeURIComponent(click);
+  const tags = [click === AN_URL + '?goi=1' ? 'telephone_receiver' : 'chart_with_upwards_trend'];
   let ok = false;
-  try {
-    const opt = { method: 'post', payload: msg, muteHttpExceptions: true };
+  // không ghi đè ntfy khi ntfy vừa báo hết hạn mức (đỡ gọi vô ích)
+  if (!prop_('NTFY_TOKEN') && cget_('NTFY_429')) ok = false;
+  else try {
+    const opt = { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      payload: JSON.stringify({ topic: topic, title: title, message: msg, priority: prio, tags: tags, click: click }) };
     const tk = prop_('NTFY_TOKEN'); if (tk) opt.headers = { Authorization: 'Bearer ' + tk };
-    const r = UrlFetchApp.fetch('https://ntfy.sh/' + topic + q, opt);
+    const r = UrlFetchApp.fetch('https://ntfy.sh/', opt);
     ok = r.getResponseCode() === 200;
+    if (r.getResponseCode() === 429) cput_('NTFY_429', 1, 3600);
     Logger.log('ntfy ' + topic + ' -> ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 200));
   } catch (e) { Logger.log('ntfy loi: ' + e); }
   // ntfy hỏng -> gửi Gmail cho chính anh (dự phòng)
