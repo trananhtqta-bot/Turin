@@ -6,7 +6,7 @@
 //|   https://script.google.com                                       |
 //|   https://script.googleusercontent.com                            |
 //+------------------------------------------------------------------+
-#property version   "2.03"
+#property version   "3.00"
 #property strict
 
 input string InpUrl        = "";     // URL cầu nối Apps Script (…/exec)
@@ -16,9 +16,10 @@ input double InpMaxLot     = 0.10;   // Luật: lot tối đa
 input double InpSupport    = 4.0;    // Luật: đường đỡ sau lưng lệnh trong bao nhiêu giá
 input double InpAtLine     = 1.5;    // Lệnh chờ coi là "tại đường" nếu cách ≤ bao nhiêu giá
 input double InpRemindPts  = 3.0;    // Nhắc chốt trước đóng nến khi lệnh lãi ≥ bao nhiêu giá
-input int    InpRemindSec  = 30;     // Nhắc trước khi đóng nến M15/H1 bao nhiêu giây
+input int    InpRemindSec  = 90;     // Nhắc trước khi đóng nến M15/H1 bao nhiêu giây
 input double InpDayWarn1   = 1.5;    // % lỗ ngày: nhắc lần 1
 input double InpDayWarn2   = 2.5;    // % lỗ ngày: nhắc lần 2 (FTMO giới hạn 3%)
+input bool   InpDrive      = true;   // true: ghi file toto_feed.json (Common\\Files) để Google Drive đồng bộ; false: gửi thẳng WebRequest
 
 ENUM_TIMEFRAMES TF[]  = {PERIOD_M5, PERIOD_M15, PERIOD_H1, PERIOD_H4, PERIOD_D1};
 string          TFN[] = {"M5", "M15", "H1", "H4", "D1"};
@@ -38,6 +39,7 @@ bool g_okOnce = false;
 datetime g_lastSend = 0, g_lastM15 = 0, g_lastH1 = 0, g_lastH4 = 0;
 bool     g_newH1 = false, g_newH4 = false, g_sendChart = true, g_sendY = true;
 string   g_ev = "";
+string   g_ring[30]; long g_ringId[30]; int g_ringN = 0; long g_seq = 0;
 
 //---------------- tiện ích ----------------
 int NthSunday(int y,int m,int n){ MqlDateTime d; d.year=y; d.mon=m; d.day=1; d.hour=0; d.min=0; d.sec=0;
@@ -49,7 +51,12 @@ datetime VN(datetime t){ return t+ServerToVN(t)*3600; }
 string D(double v){ return DoubleToString(v,_Digits); }
 string D1s(double v){ return DoubleToString(v,1); }
 string Q(string s){ StringReplace(s,"\\","/"); StringReplace(s,"\"","'"); return "\""+s+"\""; }
-void   Ev(string m){ if(StringLen(g_ev)>0) g_ev+=","; g_ev+=Q(m); }
+void   Ev(string m){
+   if(StringLen(g_ev)>0) g_ev+=","; g_ev+=Q(m);
+   long id=(long)TimeGMT()*1000+(g_seq++%1000);
+   if(g_ringN<30){ g_ring[g_ringN]=m; g_ringId[g_ringN]=id; g_ringN++; }
+   else { for(int i=1;i<30;i++){ g_ring[i-1]=g_ring[i]; g_ringId[i-1]=g_ringId[i]; } g_ring[29]=m; g_ringId[29]=id; }
+}
 double B(int h,int buf,int sh){ double a[]; if(CopyBuffer(h,buf,sh,1,a)!=1) return 0; return a[0]; }
 double LineVal(int tf,int k,int sh){            // k: 0..5 theo LN[]
    if(k==0) return B(hMA50[tf],0,sh); if(k==1) return B(hMA100[tf],0,sh); if(k==2) return B(hMA200[tf],0,sh);
@@ -78,9 +85,6 @@ int OnInit()
       hBB[i]   =iBands(_Symbol,TF[i],20,0,2.0,PRICE_CLOSE);
    }
    ScanPositions(true); ScanOrders(true);
-   Ping("https://script.google.com");
-   Ping(InpUrl+"?p=ping");
-   PingPost(50); PingPost(5000); PingPost(26000);
    EventSetTimer(1);
    return INIT_SUCCEEDED;
 }
@@ -257,6 +261,7 @@ string Feed()
    string s="{\"sym\":"+Q(_Symbol)+",\"vn\":"+Q(TimeToString(VN(TimeCurrent()),TIME_DATE|TIME_MINUTES))
            +",\"bid\":"+D(SymbolInfoDouble(_Symbol,SYMBOL_BID))+",\"ask\":"+D(SymbolInfoDouble(_Symbol,SYMBOL_ASK))
            +",\"bal\":"+DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE),2)+",\"eq\":"+DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY),2)
+           +",\"h1t\":"+IntegerToString((long)iTime(_Symbol,PERIOD_H1,0))+",\"h4t\":"+IntegerToString((long)iTime(_Symbol,PERIOD_H4,0))
            +",\"newH1\":"+(g_newH1?"true":"false")+",\"newH4\":"+(g_newH4?"true":"false")
            +",\"day\":{\"n\":"+IntegerToString(g_n)+",\"win\":"+IntegerToString(g_wins)+",\"net\":"+DoubleToString(g_net,2)+",\"same\":"+IntegerToString(g_sameDir)+"}"
            +",\"tf\":{";
@@ -366,8 +371,23 @@ string Yesterday()
    return s+"}}";
 }
 
+void WriteFile()
+{
+   g_sendChart=true; g_sendY=true;
+   string ev="";
+   for(int i=0;i<g_ringN;i++){ if(i) ev+=","; ev+="{\"i\":"+IntegerToString(g_ringId[i])+",\"m\":"+Q(g_ring[i])+"}"; }
+   string body="{\"t\":"+Q(InpPass)+",\"a\":\"feed\",\"w\":"+IntegerToString((long)TimeGMT())+",\"f\":"+Feed()+",\"evr\":["+ev+"]}";
+   uchar data[]; int n=StringToCharArray(body,data,0,WHOLE_ARRAY,CP_UTF8); if(n>0) ArrayResize(data,n-1);
+   int h=FileOpen("toto_feed.json",FILE_WRITE|FILE_BIN|FILE_COMMON);
+   if(h==INVALID_HANDLE){ Print("ToTo_Feed: không ghi được file ",GetLastError()); g_lastSend=TimeCurrent(); return; }
+   FileWriteArray(h,data); FileClose(h);
+   if(!g_okOnce){ g_okOnce=true; Print("ToTo_Feed: đang ghi toto_feed.json vào Common\\Files (chế độ Drive)"); }
+   g_ev=""; g_lastSend=TimeCurrent(); g_newH1=false; g_newH4=false; g_sendChart=false; g_sendY=false;
+}
+
 void Send()
 {
+   if(InpDrive){ WriteFile(); return; }
    if(StringLen(InpUrl)<10) return;
    string body="{\"t\":"+Q(InpPass)+",\"a\":\"feed\",\"f\":"+Feed()+",\"ev\":["+g_ev+"]}";
    char data[], res[]; string rh;

@@ -25,16 +25,17 @@ function getj_(k, d) { try { return JSON.parse(P.getProperty(k)) || d; } catch (
 function gio_(fmt) { return Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', fmt || 'dd/MM HH:mm'); }
 function C_() { return CacheService.getScriptCache(); }
 function cget_(k) { try { return JSON.parse(C_().get(k) || 'null'); } catch (e) { return null; } }
-function cput_(k, v) { try { C_().put(k, JSON.stringify(v), 21600); } catch (e) { } }
+function cput_(k, v, ttl) { try { C_().put(k, JSON.stringify(v), ttl || 21600); } catch (e) { } }
 
 // ---------- web app ----------
 function cham_(k, x) { try { P.setProperty('CHAM_' + k, gio_('dd/MM HH:mm:ss') + ' ' + x); } catch (er) { } }
-function xemCham() { ['GET', 'POST'].forEach(function (k) { Logger.log(k + ': ' + (P.getProperty('CHAM_' + k) || 'chưa có')); }); }
+function xemCham() { ['GET', 'POST', 'FILE'].forEach(function (k) { Logger.log(k + ': ' + (P.getProperty('CHAM_' + k) || 'chưa có')); }); }
 
 function doGet(e) {
   cham_('GET', (e.parameter.p || '') + (saiMK_(e.parameter.t) ? ' sai-mk' : ' ok'));
   if (saiMK_(e.parameter.t)) return out_({ error: 'sai mat khau' });
   if (e.parameter.p === 'feed') {
+    try { docFeedDrive_(false); } catch (er) { }
     return out_({
       feed: cget_('feed'), chart: cget_('chart'), y: getj_('Y', null), ana: cget_('ana') || getj_('ANA', null),
       plans: getj_('PLANS', []), huong: prop_('HUONG'), news: newsToday_(), stats: prop_('STATS'),
@@ -83,6 +84,39 @@ function nhanFeed_(d) {
       ntfy_('Tô Tô · giá về vùng vào', 'Giá ' + px.toFixed(2) + ' đã về gần vùng ' + pl.side + ' ' + pl.entry + ' (' + pl.zone + '). SL ' + pl.sl + ', TP1 ' + pl.tp1 + '.', TOTO_URL, 5);
     }
   }
+}
+
+
+// ---------- CHẾ ĐỘ DRIVE: MT5 ghi toto_feed.json, Google Drive trên VPS đồng bộ lên, cầu nối đọc ----------
+function fileFeed_() {
+  const id = prop_('FEED_FILE_ID');
+  if (id) { try { return DriveApp.getFileById(id); } catch (e) { P.deleteProperty('FEED_FILE_ID'); } }
+  const it = DriveApp.getFilesByName('toto_feed.json');
+  let best = null;
+  while (it.hasNext()) { const f = it.next(); if (!best || f.getLastUpdated() > best.getLastUpdated()) best = f; }
+  if (best) setp_('FEED_FILE_ID', best.getId());
+  return best;
+}
+function docFeedDrive_(ep) {
+  if (!ep && cget_('FEED_DOC')) return;                        // điện thoại hỏi: tối đa 20 giây đọc 1 lần
+  cput_('FEED_DOC', 1, 20);
+  const f = fileFeed_(); if (!f) return;
+  const mt = String(f.getLastUpdated().getTime());
+  if (mt === prop_('FEED_MTIME')) return;
+  let d; try { d = JSON.parse(f.getBlob().getDataAsString('UTF-8')); } catch (e) { return; }  // file đang đồng bộ dở
+  setp_('FEED_MTIME', mt);
+  if (saiMK_(d.t)) { cham_('FILE', 'sai-mk'); return; }
+  cham_('FILE', 'ok w=' + d.w);
+  const last = Number(prop_('LAST_EVID') || 0); let mx = last;
+  d.ev = (d.evr || []).filter(function (x) { return Number(x.i) > last; }).map(function (x) { mx = Math.max(mx, Number(x.i)); return x.m; });
+  if (mx > last) setp_('LAST_EVID', String(mx));
+  const ff = d.f || {};
+  if (ff.h1t && String(ff.h1t) !== prop_('H1T')) {           // nến H1/H4 mới (không phụ thuộc cờ newH1 bị mất giữa 2 lần đồng bộ)
+    const first = !prop_('H1T'); setp_('H1T', String(ff.h1t));
+    const h4 = ff.h4t && String(ff.h4t) !== prop_('H4T'); if (ff.h4t) setp_('H4T', String(ff.h4t));
+    ff.newH1 = !first; ff.newH4 = !first && h4;
+  } else { ff.newH1 = false; ff.newH4 = false; }
+  nhanFeed_(d);
 }
 
 // ---------- vùng cản + phương án (tính bằng code, AI không tự đặt số) ----------
@@ -188,6 +222,7 @@ function tongKet_() {
 
 // ---------- nhịp 1 phút ----------
 function nhip() {
+  try { docFeedDrive_(true); } catch (er) { Logger.log('docFeedDrive_ loi: ' + er); }
   const hm = gio_('HH:mm'), hom = gio_('yyyyMMdd'), now = Date.now();
   const can = prop_('CAN_PT');
   if (can) { P.deleteProperty('CAN_PT'); const h = Number(gio_('H')); if (h >= 6 && h <= 23) phanTich_(can); }
