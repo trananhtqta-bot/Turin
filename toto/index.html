@@ -122,7 +122,7 @@ function renderY(){if(!Y||!Y.tf){$('yday').textContent='Chưa có (EA gửi khi 
 function draw(){const c=$('cv'),ctx=c.getContext('2d');const W=c.clientWidth,H=c.clientHeight,dpr=devicePixelRatio||1;c.width=W*dpr;c.height=H*dpr;ctx.scale(dpr,dpr);
  const cs=getComputedStyle(document.documentElement),col=k=>cs.getPropertyValue(k).trim();ctx.clearRect(0,0,W,H);
  const d=CHART&&CHART[TFSEL];if(!d||!d.c){ctx.fillStyle=col('--mut');ctx.font='13px system-ui';ctx.fillText('Chưa có dữ liệu chart (EA gửi mỗi nến M15).',10,24);return}
- const n=d.c.length,padR=72,padB=18,cw=(W-padR)/n;
+ const n=d.c.length,padR=86,padB=18,cw=(W-padR)/n;
  const series=['ma50','ma100','ma200','bbu','bbm','bbl'];
  let lo=Infinity,hi=-Infinity;for(let i=0;i<n;i++){lo=Math.min(lo,d.l[i]);hi=Math.max(hi,d.h[i])}
  const marks=[];const pl=PLANS.find(p=>p.id===HUONG);if(pl)marks.push([pl.entry,'#3498db','Vào'],[pl.sl,'#c0392b','SL'],[pl.tp1,'#16a085','TP1']);
@@ -131,15 +131,27 @@ function draw(){const c=$('cv'),ctx=c.getContext('2d');const W=c.clientWidth,H=c
  const pad=(hi-lo)*.06;lo-=pad;hi+=pad;const y=v=>(hi-v)/(hi-lo)*(H-padB);
  ctx.strokeStyle=col('--grid');ctx.fillStyle=col('--mut');ctx.font='11px system-ui';ctx.lineWidth=1;
  const step=Math.pow(10,Math.floor(Math.log10((hi-lo)/4)));const st=[1,2,5,10].map(k=>k*step).find(s=>(hi-lo)/s<=6)||step*10;
- for(let v=Math.ceil(lo/st)*st;v<hi;v+=st){ctx.beginPath();ctx.moveTo(0,y(v));ctx.lineTo(W-padR,y(v));ctx.stroke();ctx.fillText(v.toFixed(st<1?2:0),W-padR+4,y(v)+4)}
+ for(let v=Math.ceil(lo/st)*st;v<hi;v+=st){ctx.beginPath();ctx.moveTo(0,y(v));ctx.lineTo(W-padR,y(v));ctx.stroke();ctx.fillText(v.toFixed(st<1?2:0),2,y(v)-2)}
  const colors={ma50:'#e0b400',ma100:'#9b59b6',ma200:'#e74c3c',bbu:'#2ecc71',bbm:'#2ecc71',bbl:'#2ecc71'};
  series.forEach(s=>{const a=d[s];if(!a)return;ctx.strokeStyle=colors[s];ctx.lineWidth=s==='bbm'?1:1.5;ctx.setLineDash(s==='bbm'?[4,3]:[]);ctx.beginPath();let st2=false;
   for(let i=0;i<n;i++){const v=a[i];if(!(v>0)){st2=false;continue}const X=i*cw+cw/2,Y2=y(v);if(!st2){ctx.moveTo(X,Y2);st2=true}else ctx.lineTo(X,Y2)}ctx.stroke()});ctx.setLineDash([]);
  for(let i=0;i<n;i++){const o=d.o[i],c2=d.c[i],X=i*cw+cw/2,upc=c2>=o;ctx.strokeStyle=ctx.fillStyle=upc?col('--candleUp'):col('--candleDn');
   ctx.beginPath();ctx.moveTo(X,y(d.h[i]));ctx.lineTo(X,y(d.l[i]));ctx.stroke();const bw=Math.max(1,cw*.6),top=y(Math.max(o,c2)),bh=Math.max(1,Math.abs(y(o)-y(c2)));ctx.fillRect(X-bw/2,top,bw,bh)}
- ctx.font='11px system-ui';let lastY=-99;marks.filter(m=>m[0]>lo&&m[0]<hi).sort((a,b)=>b[0]-a[0]).forEach(([v,cl,lb])=>{const yy=y(v);ctx.strokeStyle=cl;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(W-padR,yy);ctx.stroke();ctx.setLineDash([]);
-  const ly=Math.max(yy,lastY+17);lastY=ly;ctx.fillStyle=cl;ctx.fillRect(W-padR,ly-8,padR,16);ctx.fillStyle='#fff';ctx.fillText(lb+' '+v.toFixed(1),W-padR+2,ly+4)});
- if(FEED){const p=(+FEED.bid+ +FEED.ask)/2;if(p>lo&&p<hi){ctx.strokeStyle=col('--fg');ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(0,y(p));ctx.lineTo(W-padR,y(p));ctx.stroke();ctx.setLineDash([])}}
+ // nhãn giá bên phải: đường MA/BB (giá trị nến cuối), giá hiện tại, vùng vào/SL/TP — tự giãn để không chồng nhau
+ const SHORT={ma50:'MA50',ma100:'MA100',ma200:'MA200',bbu:'BB trên',bbm:'BB giữa',bbl:'BB dưới'};const tags=[];
+ series.forEach(k=>{const a=d[k];if(!a)return;const v=a[n-1];if(v>0)tags.push({v,cl:colors[k],lb:SHORT[k]})});
+ marks.forEach(([v,cl,lb])=>{if(v>lo&&v<hi){tags.push({v,cl,lb});ctx.strokeStyle=cl;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(0,y(v));ctx.lineTo(W-padR,y(v));ctx.stroke();ctx.setLineDash([])}});
+ if(FEED){const p=(+FEED.bid+ +FEED.ask)/2;if(p>lo&&p<hi){ctx.strokeStyle=col('--fg');ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(0,y(p));ctx.lineTo(W-padR,y(p));ctx.stroke();ctx.setLineDash([]);tags.push({v:p,cl:col('--fg'),lb:'Giá',me:1})}}
+ tags.sort((a,b)=>b.v-a.v);const TH=15,top0=8,bot0=H-padB-8;
+ tags.forEach(t=>t.y=Math.min(bot0,Math.max(top0,y(t.v))));
+ for(let i=1;i<tags.length;i++)if(tags[i].y<tags[i-1].y+TH)tags[i].y=tags[i-1].y+TH;
+ const over=tags.length?tags[tags.length-1].y-bot0:0;if(over>0)tags.forEach(t=>t.y-=over);
+ for(let i=tags.length-2;i>=0;i--)if(tags[i].y>tags[i+1].y-TH)tags[i].y=tags[i+1].y-TH;
+ ctx.font='bold 10px system-ui';
+ tags.forEach(t=>{const yy=y(t.v);ctx.strokeStyle=t.cl;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(W-padR,yy);ctx.lineTo(W-padR+4,t.y);ctx.stroke();
+  ctx.fillStyle=t.cl;ctx.fillRect(W-padR+4,t.y-7,padR-4,14);ctx.fillStyle=t.me?col('--bg')||'#fff':'#fff';
+  ctx.fillText((t.me?'':t.lb+' ')+t.v.toFixed(t.me?2:1),W-padR+6,t.y+4)});
+ ctx.font='11px system-ui';
  ctx.fillStyle=col('--mut');ctx.fillText(d.t[0].slice(5),2,H-4);ctx.fillText(d.t[n-1].slice(5),W-padR-90,H-4)}
 addEventListener('resize',draw);
 
