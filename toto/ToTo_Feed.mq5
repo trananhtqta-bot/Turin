@@ -6,7 +6,7 @@
 //|   https://script.google.com                                       |
 //|   https://script.googleusercontent.com                            |
 //+------------------------------------------------------------------+
-#property version   "3.00"
+#property version   "3.01"
 #property strict
 
 input string InpUrl        = "";     // URL cầu nối Apps Script (…/exec)
@@ -329,9 +329,11 @@ string Chart()
 // Thống kê hôm qua: số lần chạm từng đường ở M5/M15/H1/H4, giữ hay phá, bật bao nhiêu giá
 string Yesterday()
 {
-   datetime t0=iTime(_Symbol,PERIOD_D1,1), t1=iTime(_Symbol,PERIOD_D1,0);
-   string s="{\"d\":"+Q(TimeToString(t0,TIME_DATE))+",\"o\":"+D(iOpen(_Symbol,PERIOD_D1,1))+",\"h\":"+D(iHigh(_Symbol,PERIOD_D1,1))
-           +",\"l\":"+D(iLow(_Symbol,PERIOD_D1,1))+",\"c\":"+D(iClose(_Symbol,PERIOD_D1,1))+",\"tf\":{";
+   // cuối tuần/nghỉ lễ: nến D1 mới nhất đã là ngày giao dịch gần nhất (đã đóng) -> lấy nó làm "hôm qua"
+   int ys=(TimeToString(TimeTradeServer(),TIME_DATE)!=TimeToString(iTime(_Symbol,PERIOD_D1,0),TIME_DATE))?0:1;
+   datetime t0=iTime(_Symbol,PERIOD_D1,ys), t1=(ys==0)?t0+86400:iTime(_Symbol,PERIOD_D1,0);
+   string s="{\"d\":"+Q(TimeToString(t0,TIME_DATE))+",\"o\":"+D(iOpen(_Symbol,PERIOD_D1,ys))+",\"h\":"+D(iHigh(_Symbol,PERIOD_D1,ys))
+           +",\"l\":"+D(iLow(_Symbol,PERIOD_D1,ys))+",\"c\":"+D(iClose(_Symbol,PERIOD_D1,ys))+",\"tf\":{";
    int tfw=0;
    for(int t=0;t<4;t++){
       int sEnd=iBarShift(_Symbol,TF[t],t1-1), sBeg=iBarShift(_Symbol,TF[t],t0);
