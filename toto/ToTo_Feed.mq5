@@ -78,7 +78,7 @@ int OnInit()
       hBB[i]   =iBands(_Symbol,TF[i],20,0,2.0,PRICE_CLOSE);
    }
    ScanPositions(true); ScanOrders(true);
-   Ping("https://www.google.com");
+   Ping("https://script.google.com");
    Ping(InpUrl+"?p=ping");
    EventSetTimer(1);
    return INIT_SUCCEEDED;
