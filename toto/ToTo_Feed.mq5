@@ -6,7 +6,7 @@
 //|   https://script.google.com                                       |
 //|   https://script.googleusercontent.com                            |
 //+------------------------------------------------------------------+
-#property version   "3.01"
+#property version   "3.02"
 #property strict
 
 input string InpUrl        = "";     // URL cầu nối Apps Script (…/exec)
@@ -381,10 +381,10 @@ void WriteFile()
    string body="{\"t\":"+Q(InpPass)+",\"a\":\"feed\",\"w\":"+IntegerToString((long)TimeGMT())+",\"f\":"+Feed()+",\"evr\":["+ev+"]}";
    uchar data[]; int n=StringToCharArray(body,data,0,WHOLE_ARRAY,CP_UTF8); if(n>0) ArrayResize(data,n-1);
    int h=FileOpen("toto_feed.json",FILE_WRITE|FILE_BIN|FILE_COMMON);
-   if(h==INVALID_HANDLE){ Print("ToTo_Feed: không ghi được file ",GetLastError()); g_lastSend=TimeCurrent(); return; }
+   if(h==INVALID_HANDLE){ Print("ToTo_Feed: không ghi được file ",GetLastError()); g_lastSend=TimeLocal(); return; }
    FileWriteArray(h,data); FileClose(h);
    if(!g_okOnce){ g_okOnce=true; Print("ToTo_Feed: đang ghi toto_feed.json vào Common\\Files (chế độ Drive)"); }
-   g_ev=""; g_lastSend=TimeCurrent(); g_newH1=false; g_newH4=false; g_sendChart=false; g_sendY=false;
+   g_ev=""; g_lastSend=TimeLocal(); g_newH1=false; g_newH4=false; g_sendChart=false; g_sendY=false;
 }
 
 void Send()
@@ -396,16 +396,16 @@ void Send()
    int n=StringToCharArray(body,data,0,WHOLE_ARRAY,CP_UTF8); if(n>0) ArrayResize(data,n-1);
    ResetLastError();
    int code=WebRequest("POST",InpUrl,"Content-Type: text/plain\r\n",15000,data,res,rh);
-   if(code==-1){ g_lastSend=TimeCurrent(); Print("ToTo_Feed: WebRequest lỗi ",GetLastError()," — kiểm tra Allow WebRequest cho script.google.com"); return; }
+   if(code==-1){ g_lastSend=TimeLocal(); Print("ToTo_Feed: WebRequest lỗi ",GetLastError()," — kiểm tra Allow WebRequest cho script.google.com"); return; }
    string ans=CharArrayToString(res,0,MathMin(ArraySize(res),300),CP_UTF8);
    if(code!=200 || StringFind(ans,"error")>=0)
    {
-      g_lastSend=TimeCurrent();
+      g_lastSend=TimeLocal();
       Print("ToTo_Feed: cầu nối trả về ",code," err=",GetLastError()," dài=",n-1," | ",ans);
       return;
    }
    if(!g_okOnce){ g_okOnce=true; Print("ToTo_Feed: đã nối thông cầu nối (",code,") | ",ans); }
-   g_ev=""; g_lastSend=TimeCurrent(); g_newH1=false; g_newH4=false; g_sendChart=false; g_sendY=false;
+   g_ev=""; g_lastSend=TimeLocal(); g_newH1=false; g_newH4=false; g_sendChart=false; g_sendY=false;
 }
 
 void OnTimer()
@@ -418,6 +418,6 @@ void OnTimer()
    ScanPositions(false);
    ScanOrders(false);
    ClassifyLosses();
-   if(StringLen(g_ev)>0 || g_sendChart || g_newH1 || TimeCurrent()-g_lastSend>=InpEvery) Send();
+   if(StringLen(g_ev)>0 || g_sendChart || g_newH1 || TimeLocal()-g_lastSend>=InpEvery) Send();
 }
 //+------------------------------------------------------------------+

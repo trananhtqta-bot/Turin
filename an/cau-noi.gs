@@ -31,6 +31,11 @@ function cput_(k, v, ttl) { try { C_().put(k, JSON.stringify(v), ttl || 21600); 
 function cham_(k, x) { try { P.setProperty('CHAM_' + k, gio_('dd/MM HH:mm:ss') + ' ' + x); } catch (er) { } }
 function xemCham() { ['GET', 'POST', 'FILE'].forEach(function (k) { Logger.log(k + ': ' + (P.getProperty('CHAM_' + k) || 'chưa có')); }); }
 
+function hoSo_() {                                          // hồ sơ anh (file 12) để An tự tải khi đổi máy
+  const it = DriveApp.getFolderById(THU_MUC).getFilesByName('12_HO_SO_ANH_CHO_NGUOI_BAN.md');
+  return it.hasNext() ? it.next().getBlob().getDataAsString().slice(0, 8000) : '';
+}
+
 function doGet(e) {
   cham_('GET', (e.parameter.p || '') + (saiMK_(e.parameter.t) ? ' sai-mk' : ' ok'));
   if (saiMK_(e.parameter.t)) return out_({ error: 'sai mat khau' });
@@ -42,7 +47,7 @@ function doGet(e) {
       log: doc_('TOTO_NHAT_KY.txt').slice(-4000)
     });
   }
-  return out_({ notes: doc_('AN_GHI_CHU_CUA_CLAUDE.txt'), mem: doc_('AN_TRI_NHO.txt'), nhac: doc_('AN_NHAC_GAN_NHAT.txt') });
+  return out_({ notes: doc_('AN_GHI_CHU_CUA_CLAUDE.txt'), mem: doc_('AN_TRI_NHO.txt'), nhac: doc_('AN_NHAC_GAN_NHAT.txt'), hoso: hoSo_() });
 }
 
 function doPost(e) {
@@ -110,7 +115,7 @@ function docFeedDrive_(ep) {
   const last = Number(prop_('LAST_EVID') || 0); let mx = last;
   d.ev = (d.evr || []).filter(function (x) { return Number(x.i) > last; }).map(function (x) { mx = Math.max(mx, Number(x.i)); return x.m; });
   if (mx > last) setp_('LAST_EVID', String(mx));
-  const ff = d.f || {};
+  const ff = d.f || {}; ff.w = d.w;                          // giờ con mắt ghi file (để Tô Tô biết số liệu cũ hay mới)
   if (ff.h1t && String(ff.h1t) !== prop_('H1T')) {           // nến H1/H4 mới (không phụ thuộc cờ newH1 bị mất giữa 2 lần đồng bộ)
     const first = !prop_('H1T'); setp_('H1T', String(ff.h1t));
     const h4 = ff.h4t && String(ff.h4t) !== prop_('H4T'); if (ff.h4t) setp_('H4T', String(ff.h4t));

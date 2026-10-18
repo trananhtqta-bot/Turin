@@ -89,7 +89,7 @@ let NOTES='',CALLMSG='',BYE=false;let ws,ac,po,src,proc,stream,playAt=0,live=fal
 async function start(){
  const key=S.get('k');if(!key){st('Anh vào Cài đặt dán khóa API trước nhé');$('set').style.display='block';return}
  st('Đang kết nối…');
- if(S.get('br')){try{const r=await fetch(S.get('br')+'?t='+encodeURIComponent(S.get('tk')));const j=await r.json();if(!j.error){NOTES=(j.notes||'').slice(-6000);if(GOI&&j.nhac)CALLMSG=(j.nhac.split(' | ')[1]||'');if((j.mem||'').length>(S.get('mem')||'').length){S.set('mem',j.mem);$('mem').value=j.mem}}}catch(e){}}
+ if(S.get('br')){try{const r=await fetch(S.get('br')+'?t='+encodeURIComponent(S.get('tk')));const j=await r.json();if(!j.error){NOTES=(j.notes||'').slice(-6000);if(GOI&&j.nhac)CALLMSG=(j.nhac.split(' | ')[1]||'');if((j.mem||'').length>(S.get('mem')||'').length){S.set('mem',j.mem);$('mem').value=j.mem}if(!S.get('pf')&&j.hoso){S.set('pf',j.hoso);$('pf').value=j.hoso}}}catch(e){}}
  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}})}catch(e){st('Chưa cho phép micro');return}
  ac=new AudioContext({sampleRate:16000});po=new AudioContext({sampleRate:24000});playAt=0;
  ws=new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+encodeURIComponent(key));

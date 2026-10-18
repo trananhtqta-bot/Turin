@@ -49,7 +49,7 @@ input{width:100%;font:inherit;padding:8px;border-radius:8px;border:1px solid var
 <div class="row"><button class="btn" id="sv">Lưu</button></div>
 </section>
 
-<div class="price" id="px">—</div><div class="sub" id="meta">Đang chờ số liệu từ MT5…</div>
+<div class="price" id="px">—</div><div class="sub" id="meta">Đang chờ số liệu từ MT5…</div><div id="stale" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:10px 12px;margin:8px 0;font-weight:600"></div>
 <div id="alert"></div>
 
 <div class="card"><h3 id="anaT">Phân tích</h3><div class="ana sub" id="ana">Chưa có — bản tin sáng 6:30 và sau mỗi nến H1/H4.</div></div>
@@ -95,6 +95,7 @@ function describe(f){const p=(+f.bid+ +f.ask)/2,L=levels(f);
 
 function render(){const f=FEED;if(!f)return;const d=describe(f);
  $('px').textContent=f2(d.p);$('meta').textContent=f.sym+' · '+f.vn+' (giờ VN) · Balance '+(+f.bal).toLocaleString('vi-VN')+' · Equity '+(+f.eq).toLocaleString('vi-VN');
+ const age=f.w?Math.round(Date.now()/1000-f.w):0,st=$('stale');if(st){st.style.display=age>180?'block':'none';st.textContent='⚠ Mất kết nối MT5: số liệu cũ '+(age>=3600?Math.round(age/3600)+' giờ':Math.round(age/60)+' phút')+'. Kiểm tra VPS: MT5, con mắt ToTo_Feed và Google Drive còn chạy không.'}
  $('near').innerHTML=d.up.slice().reverse().map(x=>`<div class="lv up"><span>▲ ${x.n}</span><span>${f2(x.v)} (+${f2(x.v-d.p)})</span></div>`).join('')+
   `<div class="lv"><b>Giá</b><b>${f2(d.p)}</b></div>`+d.dn.map(x=>`<div class="lv dn"><span>▼ ${x.n}</span><span>${f2(x.v)} (−${f2(d.p-x.v)})</span></div>`).join('');
  const pos=(f.pos||[]).map(x=>`<div class="lv"><span>${x.type} ${x.vol} @ ${x.op} · SL ${+x.sl?x.sl:'chưa có'} · TP ${+x.tp?x.tp:'—'}</span><span class="${x.pnl>=0?'up':'dn'}">${x.pnl>=0?'+':''}${x.pnl}$</span></div>`).join('');
