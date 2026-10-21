@@ -1,0 +1,19 @@
+{
+  "id": "/Turin/leocotmo/",
+  "name": "Leo Cột Mỡ – Thạch Sanh đi hội",
+  "short_name": "Leo Cột Mỡ",
+  "description": "Game một chạm: Thạch Sanh đi khắp hội làng leo cột mỡ, giật đủ 100 món sính lễ để cưới cô Mai. Có tiếng Việt và English.",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#5b1612",
+  "theme_color": "#5b1612",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
