@@ -1,3 +1,4 @@
+function chayChanDoan() { chanDoanGemini(); }
 /**
  * TRUNG TÂM 3 PAGE — Bè Gỗ Trên Sông · Học cùng Ci nhé · Chuyên hoa tại Thái Bình
  * Một bảng Google Sheets điều khiển: tự viết bài (Gemini), tự tạo ảnh (Ci, Hoa),
@@ -580,7 +581,10 @@ function ghiLog_(page, viec, kq) {
   s.appendRow([new Date(), page, viec, kq]);
   if (s.getLastRow() > 2000) s.deleteRows(2, 500);
 }
-function bao_(msg) { try { SpreadsheetApp.getUi().alert(msg); } catch (e) { Logger.log(msg); } }
+function bao_(msg) {
+  try { ghiLog_('-', 'thông báo', msg); } catch (e) {}
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { Logger.log(msg); }
+}
 
 
 /* ============================ FACEBOOK: LẤY MÃ 3 PAGE ============================ */
