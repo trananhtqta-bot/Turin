@@ -103,7 +103,7 @@ function cacPage_() {
   var s = SpreadsheetApp.getActive().getSheetByName(SH.PAGE);
   return s.getRange(2, 1, s.getLastRow() - 1, PAGE_COLS.length).getValues().map(function (r, i) {
     return { row: i + 2, ma: r[P['Mã']], ten: r[P['Tên page']], nguon: r[P['Nguồn']], thuMuc: idTu_(r[P['Thư mục ảnh vào']]),
-      brief: idTu_(r[P['Brief (ID file)']]), logo: idTu_(r[P['Logo (ID file)']]), kieu: r[P['Kiểu ghép']],
+      brief: idTu_(r[P['Brief (ID file)']]), logo: (/^https?:/.test(String(r[P['Logo (ID file)']]).trim()) ? String(r[P['Logo (ID file)']]).trim() : idTu_(r[P['Logo (ID file)']])), kieu: r[P['Kiểu ghép']],
       fbId: String(r[P['FB Page ID']]).trim(), fbToken: String(r[P['FB Token']]).trim(), ytToken: String(r[P['YouTube refresh token']]).trim(),
       buffer: String(r[P['Buffer TikTok channel ID']]).trim(), bat: String(r[P['Bật']]).toUpperCase() === 'CO',
       ytCat: String(r[P['YouTube category']] || '22') };
@@ -353,7 +353,8 @@ function guiGhep_(t0) {
       var job = Utilities.getUuid(), token = Utilities.getUuid();
       var anh = DriveApp.getFileById(v[i][C['Ảnh gốc'] - 1]); congKhai_(anh);
       var logoUrl = '';
-      if (p.logo) { congKhai_(DriveApp.getFileById(p.logo)); logoUrl = linkTai_(p.logo); }
+      if (/^https?:/.test(p.logo)) logoUrl = p.logo;
+      else if (p.logo) { congKhai_(DriveApp.getFileById(p.logo)); logoUrl = linkTai_(p.logo); }
       var res = UrlFetchApp.fetch('https://api.github.com/repos/' + cfg_('GITHUB_REPO') + '/dispatches', {
         method: 'post', contentType: 'application/json', muteHttpExceptions: true,
         headers: { Authorization: 'Bearer ' + cfg_('GITHUB_TOKEN'), Accept: 'application/vnd.github+json' },
