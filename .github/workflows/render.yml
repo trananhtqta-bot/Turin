@@ -1,0 +1,27 @@
+name: render-3-page
+on:
+  repository_dispatch:
+    types: [render]
+concurrency:
+  group: render-${{ github.event.client_payload.job }}
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ẩn thông tin nhạy cảm trong log
+        run: |
+          echo "::add-mask::${{ github.event.client_payload.token }}"
+          echo "::add-mask::${{ github.event.client_payload.callback }}"
+      - name: Cài công cụ
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install --quiet pillow
+          mkdir -p fonts
+          curl -sSfL -o fonts/BeVietnamPro-Bold.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/bevietnampro/BeVietnamPro-Bold.ttf
+          curl -sSfL -o fonts/BeVietnamPro-SemiBold.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/bevietnampro/BeVietnamPro-SemiBold.ttf
+      - name: Ghép ảnh + video và gửi về
+        env:
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: python render/render.py
