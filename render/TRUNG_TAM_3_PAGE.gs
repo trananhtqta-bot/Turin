@@ -614,3 +614,16 @@ function layMaFacebook() {
   datCfg_('FB_USER_TOKEN', '');
   bao_(kq.join('\n') + '\n\nCác page Facebook tìm thấy: ' + ds.map(function (x) { return x.name; }).join(', '));
 }
+
+/** Chẩn đoán nhanh mã Gemini: ghi kết quả vào trang NhatKy. */
+function chanDoanGemini() {
+  var key = cfg_('GEMINI_KEY'), out = [];
+  var r1 = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key }, muteHttpExceptions: true });
+  var ms = []; try { ms = (JSON.parse(r1.getContentText()).models || []).map(function (x) { return x.name.replace('models/', ''); }); } catch (e) {}
+  out.push('models ' + r1.getResponseCode() + ': ' + (ms.length ? ms.filter(function (n) { return /flash|image/.test(n); }).join(', ') : r1.getContentText().substring(0, 300)));
+  var r2 = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + (cfg_('GEMINI_TEXT_MODEL') || 'gemini-flash-latest') + ':generateContent', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key },
+    payload: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Trả lời: OK' }] }] }) });
+  out.push('text ' + r2.getResponseCode() + ': ' + r2.getContentText().substring(0, 400));
+  ghiLog_('-', 'chẩn đoán Gemini', out.join(' || '));
+}
