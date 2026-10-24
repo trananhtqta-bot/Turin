@@ -28,7 +28,8 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('🪵 Trung tâm 3 page')
     .addItem('1. Cài đặt lần đầu', 'caiDatLanDau')
     .addItem('2. Kiểm tra kết nối', 'kiemTraKetNoi')
-    .addItem('3. Hiện link kết nối YouTube', 'hienLinkYouTube')
+    .addItem('3a. Lấy mã Facebook cho 3 page', 'layMaFacebook')
+    .addItem('3b. Hiện link kết nối YouTube', 'hienLinkYouTube')
     .addItem('4. BẬT tự động (chạy 15 phút/lần)', 'batTuDong')
     .addItem('5. TẮT tự động', 'tatTuDong')
     .addSeparator()
@@ -580,3 +581,31 @@ function ghiLog_(page, viec, kq) {
   if (s.getLastRow() > 2000) s.deleteRows(2, 500);
 }
 function bao_(msg) { try { SpreadsheetApp.getUi().alert(msg); } catch (e) { Logger.log(msg); } }
+
+
+/* ============================ FACEBOOK: LẤY MÃ 3 PAGE ============================ */
+function chuanHoa_(t) {
+  return String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+/** Anh dán 1 mã người dùng (đã Extend) vào CaiDat ô FB_USER_TOKEN, chạy hàm này: máy tự điền ID + mã cho 3 page. */
+function layMaFacebook() {
+  var ut = cfg_('FB_USER_TOKEN');
+  if (!ut) { datCfg_('FB_USER_TOKEN', ''); bao_('Anh dán mã người dùng Facebook vào ô FB_USER_TOKEN (trang CaiDat) rồi chạy lại.'); return; }
+  var ver = cfg_('GRAPH_VERSION') || 'v21.0';
+  var res = UrlFetchApp.fetch('https://graph.facebook.com/' + ver + '/me/accounts?fields=id,name,access_token&limit=100&access_token=' + encodeURIComponent(ut), { muteHttpExceptions: true });
+  var j = JSON.parse(res.getContentText());
+  if (j.error) { bao_('Facebook báo lỗi: ' + j.error.message); return; }
+  var ds = j.data || [], pg = SpreadsheetApp.getActive().getSheetByName(SH.PAGE), kq = [];
+  cacPage_().forEach(function (p) {
+    var ten = chuanHoa_(p.ten), hit = null;
+    ds.forEach(function (x) { var n = chuanHoa_(x.name); if (!hit && (n === ten || n.indexOf(ten) >= 0 || ten.indexOf(n) >= 0)) hit = x; });
+    if (hit) {
+      pg.getRange(p.row, P['FB Page ID'] + 1).setValue(hit.id);
+      pg.getRange(p.row, P['FB Token'] + 1).setValue(hit.access_token);
+      kq.push('✅ ' + p.ten + ' ← ' + hit.name);
+    } else kq.push('❌ ' + p.ten + ': không thấy page trùng tên');
+  });
+  datCfg_('FB_USER_TOKEN', '');
+  bao_(kq.join('\n') + '\n\nCác page Facebook tìm thấy: ' + ds.map(function (x) { return x.name; }).join(', '));
+}
