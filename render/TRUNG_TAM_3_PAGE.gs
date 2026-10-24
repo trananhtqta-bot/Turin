@@ -599,7 +599,12 @@ function layMaFacebook() {
   var ds = j.data || [], pg = SpreadsheetApp.getActive().getSheetByName(SH.PAGE), kq = [];
   cacPage_().forEach(function (p) {
     var ten = chuanHoa_(p.ten), hit = null;
+    ds.forEach(function (x) { if (!hit && p.fbId && String(x.id) === p.fbId) hit = x; });
     ds.forEach(function (x) { var n = chuanHoa_(x.name); if (!hit && (n === ten || n.indexOf(ten) >= 0 || ten.indexOf(n) >= 0)) hit = x; });
+    if (!hit && p.fbId) {   // page thuộc Business: hỏi thẳng theo ID
+      var r2 = JSON.parse(UrlFetchApp.fetch('https://graph.facebook.com/' + ver + '/' + p.fbId + '?fields=id,name,access_token&access_token=' + encodeURIComponent(ut), { muteHttpExceptions: true }).getContentText());
+      if (r2.access_token) hit = r2; else if (r2.error) kq.push('⚠️ ' + p.ten + ': ' + r2.error.message);
+    }
     if (hit) {
       pg.getRange(p.row, P['FB Page ID'] + 1).setValue(hit.id);
       pg.getRange(p.row, P['FB Token'] + 1).setValue(hit.access_token);
