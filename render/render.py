@@ -46,6 +46,14 @@ def lam_anh(src, style, title, logo):
     if style == "bego":                      # ảnh đã thiết kế sẵn: giữ nguyên
         return im.convert("RGB")
     im = im.resize((1080, int(1080 * im.height / im.width)))
+    if style == "hoa":                       # ảnh thật của tiệm: giữ nguyên khung, chỉ gắn nhãn nhỏ
+        d = ImageDraw.Draw(im)
+        f = ImageFont.truetype(FONT_R, 34)
+        t = "Chuyên hoa tại Thái Bình"
+        tw = d.textlength(t, font=f)
+        d.rounded_rectangle((im.width - tw - 64, im.height - 86, im.width - 24, im.height - 30), 26, fill=(255, 255, 255, 215))
+        d.text((im.width - tw - 44, im.height - 81), t, font=f, fill=(150, 40, 80))
+        return im.convert("RGB")
     if im.height < 1350:
         im = im.resize((int(1350 * im.width / im.height), 1350))
     left = (im.width - 1080) // 2
@@ -106,12 +114,96 @@ def lam_video(img_path, out, style):
                     "-shortest", "-movflags", "+faststart", out], check=True)
 
 
+def bo_emoji(t):
+    return "".join(ch for ch in t if ord(ch) < 0x2190 or 0x1E00 <= ord(ch) <= 0x1EFF).strip()
+
+
+def lop_chu(title):
+    """Lớp chữ trong suốt 1080x1920: tiêu đề lớn phía trên + nhãn tiệm phía dưới."""
+    top = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(top)
+    title = bo_emoji(title)
+    if title:
+        f = ImageFont.truetype(FONT_B, 76)
+        lines = chu_xuong_dong(d, title, f, 900)[:3]
+        lh = 96
+        y0 = 260
+        box_h = len(lines) * lh + 60
+        d.rounded_rectangle((60, y0 - 30, W - 60, y0 - 30 + box_h), 36, fill=(255, 255, 255, 228))
+        for i, ln in enumerate(lines):
+            tw = d.textlength(ln, font=f)
+            d.text(((W - tw) / 2, y0 + i * lh), ln, font=f, fill=(170, 30, 80))
+    top.save("lop_tieude.png")
+    wm = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(wm)
+    f = ImageFont.truetype(FONT_B, 44)
+    t = "Chuyên hoa tại Thái Bình"
+    tw = d.textlength(t, font=f)
+    x0, y0 = (W - tw) / 2 - 36, 1560
+    d.rounded_rectangle((x0, y0, x0 + tw + 72, y0 + 84), 42, fill=(170, 30, 80, 225))
+    d.text((x0 + 36, y0 + 14), t, font=f, fill=(255, 255, 255))
+    wm.save("lop_nhan.png")
+
+
+def lam_video_hoa(paths, title, out, music):
+    """Video lướt nhiều ảnh: mỗi ảnh lấp kín khung dọc, lia chậm, chuyển mờ; tiêu đề 3 giây đầu."""
+    lop_chu(title)
+    per, tr = 3.0, 0.5
+    n = len(paths)
+    dur = per * n - tr * (n - 1)
+    ins, fc = [], ""
+    for i, pth in enumerate(paths):
+        ins += ["-loop", "1", "-t", str(per), "-i", pth]
+        im = Image.open(pth)
+        doc = im.height / im.width >= H / W         # ảnh dọc hơn khung → lia dọc, ngang hơn → lia ngang
+        sc = f"scale={int(W*1.08)}:-2" if doc else f"scale=-2:{int(H*1.08)}"
+        if doc:
+            cx, cy = "(iw-1080)/2", f"(ih-1920)*t/{per}"
+        else:
+            cx, cy = (f"(iw-1080)*t/{per}" if i % 2 == 0 else f"(iw-1080)*(1-t/{per})"), "(ih-1920)/2"
+        fc += f"[{i}:v]{sc},crop=1080:1920:x='{cx}':y='{cy}',setsar=1,fps=30,format=yuv420p[c{i}];"
+    last = "c0"
+    for i in range(1, n):
+        off = per * i - tr * i
+        fc += f"[{last}][c{i}]xfade=transition=fade:duration={tr}:offset={off}[x{i}];"
+        last = f"x{i}"
+    k = n  # chỉ số input tiếp theo
+    ins += ["-i", "lop_tieude.png", "-i", "lop_nhan.png"]
+    fc += (f"[{last}][{k}:v]overlay=0:0:enable='between(t,0,3.2)'[t1];"
+           f"[t1][{k+1}:v]overlay=0:0,fade=t=in:st=0:d=0.4,fade=t=out:st={dur-0.6}:d=0.6,format=yuv420p[v]")
+    a = k + 2
+    if music:
+        ins += ["-i", music]
+        amap = ["-map", f"{a}:a", "-af", f"afade=t=in:st=0:d=1,afade=t=out:st={dur-1.5}:d=1.5"]
+    else:
+        ins += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
+        amap = ["-map", f"{a}:a"]
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *ins, "-filter_complex", fc, "-map", "[v]", *amap,
+                    "-t", f"{dur:.2f}", "-r", "30", "-c:v", "libx264", "-preset", "medium", "-crf", "24",
+                    "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", out], check=True)
+
+
 def main():
     src = tai(P["image_url"], "in.img")
     logo = tai(P["logo_url"], "logo.img") if P.get("logo_url") else None
     anh = lam_anh(src, P.get("style", "bego"), P.get("title", ""), logo)
     anh.save("out.jpg", quality=92)
-    lam_video("out.jpg", "out.mp4", P.get("style", "bego"))
+    if P.get("style") == "hoa":
+        paths = [src]
+        for i, u in enumerate(P.get("extra_urls") or []):
+            try:
+                pth = tai(u, f"x{i}.img"); Image.open(pth).verify(); paths.append(pth)
+            except Exception as e:
+                print("bỏ ảnh phụ:", e)
+        music = None
+        if P.get("music_url"):
+            try:
+                music = tai(P["music_url"], "nhac.mp3")
+            except Exception as e:
+                print("bỏ nhạc:", e)
+        lam_video_hoa(paths, P.get("title", ""), "out.mp4", music)
+    else:
+        lam_video("out.jpg", "out.mp4", P.get("style", "bego"))
     body = json.dumps({
         "job": P["job"], "token": P["token"],
         "image_b64": base64.b64encode(open("out.jpg", "rb").read()).decode(),

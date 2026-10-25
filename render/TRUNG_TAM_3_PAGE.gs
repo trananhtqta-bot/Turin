@@ -164,6 +164,7 @@ function nhipChay() {
       }
     });
     guiGhep_(t0);
+    nhacDuyet_();
     // 4) Tổng kết 21h
     if (gioNay === 21) tongKet_();
   } catch (e) {
@@ -174,7 +175,7 @@ function nhipChay() {
 function demKho_(ma) {
   var v = bangBai_().getDataRange().getValues(), n = 0;
   for (var i = 1; i < v.length; i++)
-    if (v[i][C['Page'] - 1] === ma && ['Chờ ghép', 'Đang ghép', 'Sẵn sàng'].indexOf(v[i][C['Trạng thái'] - 1]) >= 0) n++;
+    if (v[i][C['Page'] - 1] === ma && ['Chờ duyệt', 'Duyệt', 'Chờ ghép', 'Đang ghép', 'Sẵn sàng'].indexOf(v[i][C['Trạng thái'] - 1]) >= 0) n++;
   return n;
 }
 function bangBai_() { return SpreadsheetApp.getActive().getSheetByName(SH.BAI); }
@@ -266,19 +267,16 @@ function sanXuatTuAnhHoa_(p) {
   if (ds[0].n > 0) canhBaoMotLan_('QUAYVONG_' + p.ma, p.ten + ': đã dùng hết ảnh mới, máy đang dùng lại ảnh cũ với góc viết khác. Anh thả thêm ảnh hoa nhé.');
   var chon = ds[0], f0 = chon.f, blob = f0.getBlob();
   if (blob.getBytes().length > 15e6) throw new Error('Ảnh quá nặng: ' + f0.getName());
-  var gocViet = GOC_HOA[soBai % GOC_HOA.length];
+  var kieuA = soBai % 2 === 0;
   var daViet = tieuDeDaCo_(p.ma).slice(-40);
   var anh = { inlineData: { mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) } };
   var o = jsonGemini_(p, [anh, { text:
-    'Đây là ảnh sản phẩm THẬT của cửa hàng, thuộc dòng: "' + chon.album + '" (tên album anh chủ đặt — bám đúng dòng sản phẩm này, ví dụ hoa sáp thì không nói chuyện tưới nước, hoa bánh kẹo thì nói về vị ngọt/bất ngờ khi nhận...). ' +
-    'Nhìn kỹ ảnh: loại hoa/vật liệu, màu sắc, kiểu bó/giỏ/hộp, cảm giác. Chỉ tả đúng cái có trong ảnh, không bịa.\n' +
-    'Viết 1 bài Facebook theo góc: ' + gocViet + '. Nếu góc này không hợp với dòng "' + chon.album + '" thì tự đổi sang góc tương tác khác hợp hơn.\n' +
-    'Yêu cầu: câu mở đầu thật cuốn (gây tò mò/cảm xúc) để người lướt phải dừng lại; câu ngắn, xuống dòng nhiều, dễ đọc trên điện thoại; 2–4 emoji hợp bài; ' +
-    'giọng gần gũi, vui, chân thành, không sáo rỗng, không quảng cáo lộ liễu; kết bằng 1 câu hỏi/lời mời bình luận cụ thể. ' +
-    'Văn bản thuần, không dùng * hay # để định dạng (trừ hashtag cuối). ' +
-    'Bài này ' + (soBai % 4 === 3 ? 'CÓ' : 'KHÔNG') + ' kèm 1 câu mời nhẹ nhàng nhắn tin page để đặt. ' +
-    'Dòng cuối: #ChuyenHoaThaiBinh #HoaTuoiThaiBinh và 2–3 hashtag hợp dòng "' + chon.album + '". Tiêu đề không trùng: ' + JSON.stringify(daViet) + '\n' +
-    'Trả JSON: {"tieu_de": "<tiêu đề ngắn 3–7 chữ>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
+    'Ảnh này là sản phẩm THẬT của tiệm, thuộc album: "' + chon.album + '".\n' +
+    'Bước 1: nhìn kỹ và liệt kê đúng những gì thấy trong ảnh (loại hoa, màu, cách bó/cắm/trang trí, phụ kiện, chữ in trên sản phẩm nếu có).\n' +
+    'Bước 2: viết 1 bài Facebook theo KIỂU ' + (kieuA ? 'A – GIỚI THIỆU SẢN PHẨM' : 'B – KÉO BÌNH LUẬN') + ' trong brief, bắt chước đúng giọng và bố cục của mẫu ' + (kieuA ? 'A' : 'B') + ' đã duyệt.\n' +
+    'Chỉ nói về sản phẩm trong ảnh. KHÔNG bịa chuyện, nhân vật, lời thoại, giá, khuyến mãi.\n' +
+    'Tiêu đề (tieu_de): câu ngắn 3–7 chữ, KHÔNG emoji, hấp dẫn, để in lên đầu video (vd: "Cốp xe ngập hoa mừng tốt nghiệp"). Không trùng: ' + JSON.stringify(daViet) + '\n' +
+    'Trả JSON: {"thay_trong_anh": "<liệt kê ngắn>", "tieu_de": "<tiêu đề>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
   if (!o.bai_viet) throw new Error('Gemini trả thiếu bài');
   themDong_(p.ma, '', o.tieu_de, lamSach_(o.bai_viet), f0.getId(), 'Album: ' + chon.album);
   ghiLog_(p.ma, 'viết bài (' + chon.album + '): ' + o.tieu_de, 'OK');
@@ -309,10 +307,23 @@ function sanXuatTuTao_(p) {
 
 function themDong_(ma, so, tieuDe, noiDung, anhGoc, chu) {
   var r = new Array(BAI_COLS.length).fill('');
-  r[C['Page'] - 1] = ma; r[C['Số'] - 1] = so; r[C['Tiêu đề'] - 1] = tieuDe; r[C['Trạng thái'] - 1] = 'Chờ ghép';
+  r[C['Page'] - 1] = ma; r[C['Số'] - 1] = so; r[C['Tiêu đề'] - 1] = tieuDe; r[C['Trạng thái'] - 1] = canDuyet_(ma) ? 'Chờ duyệt' : 'Chờ ghép';
   r[C['Nội dung'] - 1] = noiDung; r[C['Ảnh gốc'] - 1] = anhGoc; r[C['Chữ trong ảnh'] - 1] = chu;
   r[C['Lần ghép'] - 1] = 0; r[C['Tạo lúc'] - 1] = new Date();
   bangBai_().appendRow(r);
+}
+function canDuyet_(ma) {
+  return cfg_('DUYET_TRUOC').split(',').map(function (x) { return x.trim().toUpperCase(); }).indexOf(String(ma).toUpperCase()) >= 0;
+}
+function nhacDuyet_() {
+  var v = bangBai_().getDataRange().getValues(), n = 0;
+  for (var i = 1; i < v.length; i++) if (v[i][C['Trạng thái'] - 1] === 'Chờ duyệt') n++;
+  if (!n) return;
+  var hom = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'), pr = PropertiesService.getScriptProperties();
+  if (pr.getProperty('NHAC_DUYET') === hom) return;
+  pr.setProperty('NHAC_DUYET', hom);
+  canhBao_('Có ' + n + ' bài đang CHỜ DUYỆT. Anh mở trang Bai, đọc cột Nội dung (sửa trực tiếp nếu muốn), rồi đổi cột Trạng thái thành "Duyệt" (hoặc "Bỏ"). ' +
+    SpreadsheetApp.getActive().getUrl() + '#gid=' + bangBai_().getSheetId());
 }
 function tieuDeDaCo_(ma) {
   var v = bangBai_().getDataRange().getValues(), out = [];
@@ -404,7 +415,7 @@ function guiGhep_(t0) {
   for (var i = 1; i < v.length && Date.now() - t0 < HET_GIO; i++) {
     var tt = v[i][C['Trạng thái'] - 1], row = i + 1;
     var tre = tt === 'Đang ghép' && (Date.now() - new Date(v[i][C['Đăng lúc'] - 1] || 0).getTime() > 30 * 60 * 1000);
-    if (tt !== 'Chờ ghép' && !tre) continue;
+    if (tt !== 'Chờ ghép' && tt !== 'Duyệt' && !tre) continue;
     var lan = Number(v[i][C['Lần ghép'] - 1]) || 0;
     if (lan >= 3) { s.getRange(row, C['Trạng thái']).setValue('Lỗi'); s.getRange(row, C['Ghi chú']).setValue('Ghép video thất bại 3 lần');
       canhBao_('Bài "' + v[i][C['Tiêu đề'] - 1] + '": ghép video thất bại 3 lần.'); continue; }
@@ -420,7 +431,7 @@ function guiGhep_(t0) {
         headers: { Authorization: 'Bearer ' + cfg_('GITHUB_TOKEN'), Accept: 'application/vnd.github+json' },
         payload: JSON.stringify({ event_type: 'render', client_payload: {
           job: job, token: token, image_url: linkTai_(anh.getId()), logo_url: logoUrl,
-          title: String(v[i][C['Tiêu đề'] - 1]), style: p.kieu, callback: cfg_('WEBAPP_URL') || ScriptApp.getService().getUrl() } }) });
+          title: String(v[i][C['Tiêu đề'] - 1]), style: p.kieu, extra_urls: p.kieu === 'hoa' ? anhCungAlbum_(anh, 4) : [], music_url: nhacNen_(), callback: cfg_('WEBAPP_URL') || ScriptApp.getService().getUrl() } }) });
       if (res.getResponseCode() !== 204) throw new Error('GitHub ' + res.getResponseCode() + ': ' + res.getContentText().substring(0, 200));
       PropertiesService.getScriptProperties().setProperty('JOB_' + job, token);
       s.getRange(row, C['Job']).setValue(job);
@@ -433,6 +444,27 @@ function guiGhep_(t0) {
       return;
     }
   }
+}
+/** Lấy thêm tối đa n ảnh khác trong cùng album để làm video lướt nhiều ảnh. */
+function anhCungAlbum_(anh, n) {
+  var out = [];
+  try {
+    var it = anh.getParents(); if (!it.hasNext()) return out;
+    var fs = it.next().getFiles(), ds = [];
+    while (fs.hasNext()) { var f = fs.next(); if (f.getId() !== anh.getId() && f.getMimeType().indexOf('image/') === 0) ds.push(f); }
+    for (var i = ds.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = ds[i]; ds[i] = ds[j]; ds[j] = t; }
+    ds.slice(0, n).forEach(function (f) { congKhai_(f); out.push(linkTai_(f.getId())); });
+  } catch (e) { ghiLog_('-', 'ảnh cùng album', 'LỖI: ' + e.message); }
+  return out;
+}
+function nhacNen_() {
+  var id = idTu_(cfg_('NHAC_NEN')); if (!id) return '';
+  try {
+    var fs = DriveApp.getFolderById(id).getFiles(), ds = [];
+    while (fs.hasNext()) { var f = fs.next(); if (/audio|mpeg/.test(f.getMimeType()) || /\.mp3$/i.test(f.getName())) ds.push(f); }
+    if (!ds.length) return '';
+    var f0 = ds[Math.floor(Math.random() * ds.length)]; congKhai_(f0); return linkTai_(f0.getId());
+  } catch (e) { return ''; }
 }
 function congKhai_(f) {
   if (f.getSharingAccess() !== DriveApp.Access.ANYONE_WITH_LINK) f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
