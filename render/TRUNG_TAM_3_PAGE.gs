@@ -712,7 +712,7 @@ function dangYT_(p, tieuDe, moTa, blob) {
 
 function dangTikTok_(p, tieuDe, noiDung, videoId, anhId) {
   var q = 'mutation($i: CreatePostInput!){ createPost(input:$i){ __typename ... on PostActionSuccess { post { id status } } ... on MutationError { message } } }';
-  var bien = { i: { channelId: p.buffer, text: noiDung.substring(0, 2100), mode: 'shareNow', schedulingType: 'automatic',
+  var bien = { i: { channelId: p.buffer, text: noiDung.substring(0, 2100), mode: 'shareNow', schedulingType: (cfg_('TIKTOK_BAO') || 'HOA').toUpperCase().split(',').map(function (x) { return x.trim(); }).indexOf(String(p.ma).toUpperCase()) >= 0 ? 'notification' : 'automatic',   // notification = Buffer báo điện thoại để anh tự chọn nhạc rồi đăng
     assets: videoId ? [{ video: { url: linkTai_(videoId) } }] : [{ image: { url: (function () { congKhai_(DriveApp.getFileById(anhId)); return linkTai_(anhId); })() } }],
     metadata: { tiktok: { title: tieuDe.substring(0, 90), isAiGenerated: p.nguon === 'TU_TAO' } } } };   // không có video (page Hoa) → đăng TikTok chế độ ảnh
   var res = UrlFetchApp.fetch(cfg_('BUFFER_API') || 'https://api.buffer.com', { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
