@@ -1,4 +1,4 @@
-function chayChanDoan() { guiGhep_(Date.now()); }
+function chayChanDoan() { try { damBaoWebhook_(); } catch (e) { ghiLog_('-', 'Telegram', 'LỖI: ' + e.message); } vietBaiHoaNgay(); }
 /**
  * TRUNG TÂM 3 PAGE — Bè Gỗ Trên Sông · Học cùng Ci nhé · Chuyên hoa tại Thái Bình
  * Một bảng Google Sheets điều khiển: tự viết bài (Gemini), tự tạo ảnh (Ci, Hoa),
