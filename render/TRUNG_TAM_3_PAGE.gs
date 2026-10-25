@@ -35,6 +35,7 @@ function onOpen() {
     .addItem('5. TẮT tự động', 'tatTuDong')
     .addSeparator()
     .addItem('Chạy 1 lượt ngay', 'nhipChay')
+    .addItem('Viết sẵn bài Hoa theo lịch (2 ngày tới)', 'vietBaiHoaNgay')
     .addItem('Đăng ngay 1 bài sẵn sàng của mỗi page', 'dangNgay')
     .addItem('Thử đăng lại các bài Lỗi', 'thuLaiLoi')
     .addToUi();
@@ -202,6 +203,14 @@ function dongTiepTheo_(ma, tt) {
 }
 
 /* ============================ SẢN XUẤT BÀI ============================ */
+function vietBaiHoaNgay() {
+  var t0 = Date.now(), n = 0;
+  cacPage_().filter(function (p) { return coLich_(p.ma); }).forEach(function (p) {
+    while (Date.now() - t0 < HET_GIO && sanXuat_(p)) n++;
+  });
+  ghiLog_('HOA', 'viết sẵn theo lịch', n + ' bài');
+  if (n) nhacDuyet_();
+}
 function sanXuat_(p) {
   try {
     if (p.nguon === 'ANH_CO_SAN') return sanXuatTuAnh_(p);
