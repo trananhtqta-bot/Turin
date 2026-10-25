@@ -349,17 +349,23 @@ function lamSach_(t) {
 /* ============================ GEMINI ============================ */
 function goiGemini_(model, body) {
   var key = cfg_('GEMINI_KEY'); if (!key) throw new Error('Chưa điền GEMINI_KEY');
-  for (var t = 0; t < 3; t++) {
+  var loi = '';
+  for (var t = 0; t < 4; t++) {
+    var t0 = Date.now();
     var res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
       method: 'post', contentType: 'application/json', muteHttpExceptions: true,
       headers: { 'x-goog-api-key': key }, payload: JSON.stringify(body) });
-    var code = res.getResponseCode();
-    if (code === 429 || code >= 500) { Utilities.sleep(15000 * (t + 1)); continue; }
+    var code = res.getResponseCode(), giay = Math.round((Date.now() - t0) / 1000);
+    if (code !== 200 || giay > 40) ghiLog_('-', 'Gemini ' + model, 'mã ' + code + ' sau ' + giay + 's' + (code !== 200 ? ': ' + res.getContentText().substring(0, 300) : ''));
+    if (code === 400 && body.generationConfig && body.generationConfig.thinkingConfig) {   // mẫu không hỗ trợ chỉnh mức "suy nghĩ"
+      delete body.generationConfig.thinkingConfig; continue;
+    }
+    if (code === 429 || code >= 500) { loi = 'mã ' + code; Utilities.sleep(10000 * (t + 1)); continue; }
     var j = JSON.parse(res.getContentText());
     if (code !== 200) throw new Error('Gemini ' + code + ': ' + (j.error ? j.error.message : '').substring(0, 250));
     return j;
   }
-  throw new Error('Gemini quá tải, sẽ thử lại lượt sau');
+  throw new Error('Gemini quá tải (' + loi + '), sẽ thử lại lượt sau');
 }
 function briefCua_(p) {
   var c = CacheService.getScriptCache(), k = 'brief_' + p.brief, b = c.get(k);
@@ -368,7 +374,7 @@ function briefCua_(p) {
   c.put(k, b.substring(0, 90000), 21600); return b;
 }
 function textGemini_(p, parts, json) {
-  var gc = { temperature: 0.85, maxOutputTokens: 8192 };
+  var gc = { temperature: 0.85, maxOutputTokens: 8192, thinkingConfig: { thinkingLevel: 'low' } };
   if (json) gc.responseMimeType = 'application/json';
   var j = goiGemini_(cfg_('GEMINI_TEXT_MODEL') || 'gemini-flash-latest', {
     systemInstruction: { parts: [{ text: 'Bạn viết nội dung cho page "' + p.ten + '". Tuân thủ tuyệt đối brief sau:\n\n' + briefCua_(p) }] },
