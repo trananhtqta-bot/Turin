@@ -18,7 +18,7 @@ var SH = { PAGE: 'Page', BAI: 'Bai', CI: 'NguonCi', CD: 'CaiDat', LOG: 'NhatKy' 
 var PAGE_COLS = ['Mã', 'Tên page', 'Nguồn', 'Thư mục ảnh vào', 'Brief (ID file)', 'Logo (ID file)', 'Kiểu ghép',
   'FB Page ID', 'FB Token', 'YouTube refresh token', 'Buffer TikTok channel ID', 'Bật', 'YouTube category'];
 var BAI_COLS = ['Page', 'Số', 'Tiêu đề', 'Trạng thái', 'Nội dung', 'Ảnh gốc', 'Ảnh đăng', 'Video', 'Đăng lúc',
-  'Facebook', 'YouTube', 'TikTok', 'Ghi chú', 'Chữ trong ảnh', 'Job', 'Lần ghép', 'Tạo lúc'];
+  'Facebook', 'YouTube', 'TikTok', 'Ghi chú', 'Chữ trong ảnh', 'Job', 'Lần ghép', 'Tạo lúc', 'Lịch đăng', 'Loại'];
 var C = {}; BAI_COLS.forEach(function (n, i) { C[n] = i + 1; });
 var P = {}; PAGE_COLS.forEach(function (n, i) { P[n] = i; });
 var TON_KHO = 4;            // mỗi page luôn giữ sẵn 4 bài chuẩn bị trước
@@ -145,21 +145,30 @@ function nhipChay() {
     // 1) Đăng bài đúng giờ (ưu tiên trước)
     var gioNay = Number(Utilities.formatDate(new Date(), TZ, 'H'));
     var gios = cfg_('GIO_DANG').split(',').map(function (x) { return Number(x.trim()); });
-    if (gios.indexOf(gioNay) >= 0) {
-      var khung = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd-HH');
-      pages.forEach(function (p) {
-        var key = 'DADANG_' + p.ma;
-        if (PropertiesService.getScriptProperties().getProperty(key) === khung) return;
-        var r = dongTiepTheo_(p.ma, 'Sẵn sàng');
-        if (r > 0) { dangDong_(r, p); PropertiesService.getScriptProperties().setProperty(key, khung); }
-        else canhBao_(p.ten + ': đến giờ đăng nhưng KHÔNG có bài sẵn sàng.');
-      });
-    }
+    var khung = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd-HH');
+    pages.forEach(function (p) {
+      var key = 'DADANG_' + p.ma, pr = PropertiesService.getScriptProperties();
+      if (pr.getProperty(key) === khung) return;
+      if (coLich_(p.ma)) {   // page chạy theo lịch (Hoa): chỉ đăng bài đã DUYỆT của đúng khung giờ này
+        var kl = khungLich_(new Date(), TZ, gioNay);
+        var co = lichCua_(p.ma).some(function (x) { return x.thu === thuCua_(new Date()) && x.gio === gioNay; });
+        if (!co) return;
+        pr.setProperty(key, khung);
+        var r2 = dongTheoLich_(p.ma, kl);
+        if (r2 > 0) dangDong_(r2, p);
+        else canhBao_(p.ten + ': đến khung ' + kl + ' nhưng bài của khung này CHƯA được duyệt nên không đăng.');
+        return;
+      }
+      if (gios.indexOf(gioNay) < 0) return;
+      var r = dongTiepTheo_(p.ma, 'Sẵn sàng');
+      if (r > 0) { dangDong_(r, p); pr.setProperty(key, khung); }
+      else canhBao_(p.ten + ': đến giờ đăng nhưng KHÔNG có bài sẵn sàng.');
+    });
     // 2) Gửi ảnh đi ghép / thử lại job bị treo
     guiGhep_(t0);
     // 3) Chuẩn bị bài mới cho đủ tồn kho
     pages.forEach(function (p) {
-      while (Date.now() - t0 < HET_GIO && demKho_(p.ma) < TON_KHO) {
+      while (Date.now() - t0 < HET_GIO && (coLich_(p.ma) || demKho_(p.ma) < TON_KHO)) {
         if (!sanXuat_(p)) break;
       }
     });
@@ -234,16 +243,6 @@ function sanXuatTuAnh_(p) {
 
 /** Hoa: lấy ảnh hoa thật trong album (ảnh chưa dùng trước; dùng hết thì quay vòng ảnh dùng ít nhất),
  *  Gemini nhìn ảnh rồi viết bài tương tác theo một "góc viết" xoay vòng. */
-var CHU_DE_HOA = [
-  'GIỚI THIỆU MẪU (kiểu A): hoa gì, màu gì, cách gói/cắm, hợp dịp nào — đúng như trong ảnh',
-  'BÌNH CHỌN / ĐỐ VUI: hỏi "bó này bạn tặng ai? A/B/C" hoặc đố đoán số bông / tên loài hoa, mời bình luận đáp án',
-  'Ý NGHĨA LOÀI HOA chính trong ảnh: 3–4 ý ngắn, dễ nhớ, ít người biết',
-  'Ý NGHĨA MÀU SẮC của bó hoa trong ảnh: màu này nói lên điều gì, hợp tặng ai',
-  'HOA THEO DỊP SẮP TỚI: {DIP}. Gợi ý vì sao mẫu trong ảnh hợp dịp này, nhắc khéo đặt sớm',
-  'GỢI Ý LỜI NHẮN GHI THIỆP: 3–4 câu ngắn để ghi thiệp kèm bó hoa này (cho mẹ, người yêu, thầy cô, bạn bè...), mời mọi người góp thêm câu',
-  'GỢI Ý TẶNG AI: bó này hợp tặng mẹ / vợ / người yêu / cô giáo / đối tác thế nào, hỏi người đọc định tặng ai',
-  'MẸO GIỮ HOA: nếu là hoa tươi thì 3–5 mẹo giữ tươi lâu; nếu là hoa sáp/hoa tiền/hoa bánh kẹo thì mẹo bảo quản cho bền đẹp'
-];
 /** Dịp tặng hoa gần nhất trong ~60 ngày tới. */
 function dipSapToi_() {
   var nay = new Date(), y = nay.getFullYear(), ds = [];
@@ -255,45 +254,112 @@ function dipSapToi_() {
   ds = ds.filter(function (d) { var k = (d.t - nay) / 864e5; return k >= -1 && k <= 60; }).sort(function (a, b) { return a.t - b.t; });
   return ds.length ? ds[0].ten + ' (ngày ' + Utilities.formatDate(ds[0].t, TZ, 'dd/MM') + ')' : 'sinh nhật, kỷ niệm, khai trương';
 }
+/* ---------- Lịch & chủ đề page Hoa (trang LichHoa, ChuDeHoa) ---------- */
+var THU_TEN = ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+var NGAY_TOI = 2;   // chuẩn bị sẵn bài cho các khung trong 2 ngày tới (để anh kịp duyệt)
+function coLich_(ma) { return String(ma).toUpperCase() === 'HOA' && !!SpreadsheetApp.getActive().getSheetByName('LichHoa'); }
+function thuCua_(d) { return Number(Utilities.formatDate(d, TZ, 'u')); }   // 1 = Thứ 2 … 7 = Chủ nhật
+function lichCua_(ma) {
+  var s = SpreadsheetApp.getActive().getSheetByName('LichHoa'); if (!s || s.getLastRow() < 2) return [];
+  return s.getRange(2, 1, s.getLastRow() - 1, 3).getValues().map(function (r) {
+    var t = String(r[0]).trim().toUpperCase().replace(/^T(HỨ)?\s*/, ''), thu = (t === 'CN' || t === '8') ? 7 : Number(t) - 1;
+    return { thu: thu, gio: Number(r[1]), loai: String(r[2]).trim() };
+  }).filter(function (x) { return x.thu >= 1 && x.thu <= 7 && x.gio >= 0 && x.gio <= 23 && x.loai; });
+}
+function khungLich_(d, tz, gio) { return THU_TEN[thuCua_(d)] + ' ' + Utilities.formatDate(d, TZ, 'dd/MM/yyyy') + ' ' + (gio < 10 ? '0' : '') + gio + 'h'; }
+function chuDeCua_(loai) {
+  var s = SpreadsheetApp.getActive().getSheetByName('ChuDeHoa'); if (!s || s.getLastRow() < 2) return [];
+  var k = chuanHoa_(loai);
+  return s.getRange(2, 1, s.getLastRow() - 1, 2).getValues().filter(function (r) { return chuanHoa_(r[0]) === k && String(r[1]).trim(); })
+    .map(function (r) { return String(r[1]).trim(); });
+}
+function dongTheoLich_(ma, kl) {
+  var v = bangBai_().getDataRange().getValues();
+  for (var i = 1; i < v.length; i++)
+    if (v[i][C['Page'] - 1] === ma && String(v[i][C['Lịch đăng'] - 1]) === kl && ['Duyệt', 'Sẵn sàng'].indexOf(v[i][C['Trạng thái'] - 1]) >= 0) return i + 1;
+  return -1;
+}
+/** Khung giờ sắp tới (trong NGAY_TOI ngày) còn thiếu bài. */
+function khungThieu_(ma) {
+  var v = bangBai_().getDataRange().getValues(), co = {}, bo = {};
+  for (var i = 1; i < v.length; i++) if (v[i][C['Page'] - 1] === ma) {
+    var k = String(v[i][C['Lịch đăng'] - 1]); if (!k) continue;
+    if (v[i][C['Trạng thái'] - 1] === 'Bỏ') bo[k] = (bo[k] || 0) + 1; else co[k] = 1;
+  }
+  var lich = lichCua_(ma), now = Date.now();
+  for (var d = 0; d <= NGAY_TOI; d++) {
+    var ngay = new Date(now + d * 864e5), thu = thuCua_(ngay), ymd = Utilities.formatDate(ngay, TZ, 'yyyy-MM-dd');
+    var ds = lich.filter(function (x) { return x.thu === thu; }).sort(function (a, b) { return a.gio - b.gio; });
+    for (var j = 0; j < ds.length; j++) {
+      var luc = new Date(ymd + 'T' + (ds[j].gio < 10 ? '0' : '') + ds[j].gio + ':00:00+07:00').getTime();
+      if (luc < now + 10 * 60000 || luc > now + NGAY_TOI * 864e5) continue;
+      var kl = khungLich_(ngay, TZ, ds[j].gio);
+      if (co[kl] || (bo[kl] || 0) >= 3) continue;   // anh bỏ 3 lần thì thôi, không viết lại nữa
+      return { kl: kl, loai: ds[j].loai, ngay: ngay, gio: ds[j].gio };
+    }
+  }
+  return null;
+}
+
+/** Hoa: theo lịch — khung nào thiếu bài thì lấy ảnh đúng album của khung đó, chọn chủ đề xoay vòng, Gemini viết. */
 function sanXuatTuAnhHoa_(p) {
   if (!p.thuMuc) return false;
-  var dem = {}, demAlbum = {}, v = bangBai_().getDataRange().getValues(), soBai = 0;
+  var k = khungThieu_(p.ma); if (!k) return false;
+  var tamTu = chuanHoa_(k.loai) === chuanHoa_('Tâm tư');
+  var dem = {}, demLoai = 0, v = bangBai_().getDataRange().getValues();
   for (var i = 1; i < v.length; i++) if (v[i][C['Page'] - 1] === p.ma) {
-    soBai++; var g = v[i][C['Ảnh gốc'] - 1]; dem[g] = (dem[g] || 0) + 1;
-    var al = String(v[i][C['Chữ trong ảnh'] - 1]).replace(/^Album:\s*/, ''); demAlbum[al] = (demAlbum[al] || 0) + 1;
+    var g = v[i][C['Ảnh gốc'] - 1]; dem[g] = (dem[g] || 0) + 1;
+    if (chuanHoa_(v[i][C['Loại'] - 1]) === chuanHoa_(k.loai)) demLoai++;
   }
-  // Mỗi thư mục con = 1 album (Hoa tươi, Hoa sáp, Hoa bánh kẹo...). Ảnh để ngoài cùng tính là album "Hoa".
-  var tq = Date.now(), goc = DriveApp.getFolderById(p.thuMuc), ds = [];
+  // Ảnh: album trùng tên loại; Tâm tư thì lấy ảnh bất kỳ trong mọi album
+  var goc = DriveApp.getFolderById(p.thuMuc), ds = [], tq = Date.now();
   function quet(folderId, ten) {
     var it = DriveApp.searchFiles("'" + folderId + "' in parents and mimeType contains 'image/' and trashed = false");
-    while (it.hasNext()) { var f = it.next(), id = f.getId(); ds.push({ f: f, album: ten, n: dem[id] || 0, a: demAlbum[ten] || 0, r: Math.random() }); }
+    while (it.hasNext()) { var f = it.next(); ds.push({ f: f, album: ten, n: dem[f.getId()] || 0, r: Math.random() }); }
   }
-  quet(goc.getId(), 'Hoa');
-  var sub = goc.getFolders(); while (sub.hasNext()) { var fd = sub.next(); quet(fd.getId(), fd.getName().trim()); }
-  if (!ds.length) { canhBaoMotLan_('HET_ANH_' + p.ma, p.ten + ': album ảnh hoa đang trống, anh thả ảnh vào nhé.'); return false; }
-  // Ưu tiên ảnh chưa dùng; giữa các album thì xoay vòng album ít bài nhất để page đa dạng
-  ds.sort(function (x, y) { return x.n - y.n || x.a - y.a || x.r - y.r; });
-  if (ds[0].n > 0) canhBaoMotLan_('QUAYVONG_' + p.ma, p.ten + ': đã dùng hết ảnh mới, máy đang dùng lại ảnh cũ với góc viết khác. Anh thả thêm ảnh hoa nhé.');
-  var chon = ds[0], f0 = chon.f;
-  var blob = anhNho_(f0);
-  ghiLog_(p.ma, 'chọn ảnh', ds.length + ' ảnh, quét ' + Math.round((Date.now() - tq) / 1000) + 's → ' + chon.album + '/' + f0.getName());
-  var chuDe = CHU_DE_HOA[soBai % CHU_DE_HOA.length].replace('{DIP}', dipSapToi_());
-  var kieuA = soBai % CHU_DE_HOA.length === 0;
+  var sub = goc.getFolders(), timThay = false;
+  while (sub.hasNext()) {
+    var fd = sub.next(), ten = fd.getName().trim();
+    if (tamTu || chuanHoa_(ten) === chuanHoa_(k.loai)) { quet(fd.getId(), ten); timThay = true; }
+  }
+  if (tamTu) quet(goc.getId(), 'Hoa');
+  if (!ds.length) {
+    canhBaoMotLan_('HET_ANH_' + k.loai, p.ten + ': album "' + k.loai + '" ' + (timThay ? 'đang trống' : 'không có (tên thư mục phải trùng cột Loại trong trang LichHoa)') + ', anh thả ảnh vào nhé.');
+    themDong_(p.ma, '', '(thiếu ảnh ' + k.loai + ')', '', '', '');   // giữ chỗ để không viết lặp
+    var r0 = bangBai_().getLastRow();
+    bangBai_().getRange(r0, C['Trạng thái']).setValue('Bỏ'); bangBai_().getRange(r0, C['Lịch đăng']).setValue(k.kl); bangBai_().getRange(r0, C['Loại']).setValue(k.loai);
+    return true;
+  }
+  ds.sort(function (x, y) { return x.n - y.n || x.r - y.r; });
+  var chon = ds[0], f0 = chon.f, blob = anhNho_(f0);
+  ghiLog_(p.ma, 'chọn ảnh', k.kl + ' · ' + k.loai + ': ' + ds.length + ' ảnh, quét ' + Math.round((Date.now() - tq) / 1000) + 's → ' + chon.album + '/' + f0.getName());
+  var cds = chuDeCua_(k.loai), chuDe = cds.length ? cds[demLoai % cds.length] : k.loai;
   var daViet = tieuDeDaCo_(p.ma).slice(-40);
   var anh = { inlineData: { mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) } };
-  var o = jsonGemini_(p, [anh, { text:
-    'Ảnh này là sản phẩm THẬT của tiệm, thuộc album: "' + chon.album + '".\n' +
-    'Bước 1: nhìn kỹ và liệt kê đúng những gì thấy trong ảnh (loại hoa, màu, cách bó/cắm/trang trí, phụ kiện, chữ in trên sản phẩm nếu có).\n' +
-    'Bước 2: viết 1 bài Facebook theo CHỦ ĐỀ: ' + chuDe + '.\n' +
-    'Giọng văn và bố cục bắt chước mẫu ' + (kieuA ? 'A' : 'B') + ' đã duyệt trong brief. Mở đầu bằng 1 câu thật cuốn hút, viết sáng tạo, gần gũi, dễ đọc trên điện thoại, vài emoji 🌸💐✨ vừa phải. Kết bằng 1 câu hỏi/lời mời bình luận.\n' +
-    'Chỉ nói về sản phẩm trong ảnh. KHÔNG bịa chuyện, nhân vật, lời thoại, giá, khuyến mãi.\n' +
-    'KHÔNG viết hashtag, địa chỉ, số điện thoại (máy tự gắn đoạn cuối). Văn bản thuần, không dùng * hay #.\n' +
-    'Logo/chữ "Forentino" trên ảnh là thương hiệu CỦA TIỆM MÌNH (được nhắc tới nếu hợp). Băng rôn, thiệp, biển chúc mừng trên sản phẩm là của khách: KHÔNG chép tên người/công ty ghi trên đó vào bài.\n' +
-    'Tiêu đề (tieu_de): câu ngắn 3–7 chữ, KHÔNG emoji. Không trùng: ' + JSON.stringify(daViet) + '\n' +
-    'Trả JSON: {"thay_trong_anh": "<liệt kê ngắn>", "tieu_de": "<tiêu đề>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
+  var boiCanh = 'Bài sẽ đăng lúc ' + k.gio + 'h ' + THU_TEN[thuCua_(k.ngay)] + ' ' + Utilities.formatDate(k.ngay, TZ, 'dd/MM/yyyy') +
+    '. Dịp tặng hoa sắp tới: ' + dipSapToi_() + ' (chỉ nhắc nếu hợp tự nhiên).\n';
+  var yc = tamTu ?
+    ('Đây là bài "TÂM TƯ" (chuyện cảm xúc, tình cảm, gợi bình luận) cho page bán hoa. Ảnh kèm theo là một sản phẩm thật của tiệm (album "' + chon.album + '").\n' + boiCanh +
+     'CHỦ ĐỀ: ' + chuDe + '\n' +
+     'Viết 1 bài Facebook sâu lắng, gần gũi, chân thật như một người bán hoa đã chứng kiến nhiều câu chuyện tặng hoa; câu mở đầu thật cuốn hút; có thể khéo liên hệ tới bó hoa trong ảnh và việc tặng hoa nhưng KHÔNG quảng cáo lộ liễu. ' +
+     'Kết bằng 1 câu hỏi mở để mọi người bình luận chia sẻ. Không bịa tên người thật, không nhắc giá.\n') :
+    ('Ảnh này là sản phẩm THẬT của tiệm, thuộc dòng: "' + chon.album + '".\n' + boiCanh +
+     'Bước 1: nhìn kỹ và liệt kê đúng những gì thấy (loại hoa/kẹo/tiền, màu, cách bó/cắm/trang trí, phụ kiện).\n' +
+     'Bước 2: viết 1 bài Facebook theo CHỦ ĐỀ: ' + chuDe + '\n' +
+     'Viết sáng tạo, câu mở đầu thật cuốn hút, gợi cảm xúc và khiến khách muốn nhắn tin hỏi mẫu; bài phải ĐÚNG với sản phẩm trong ảnh (không tả sai loại hoa, màu). ' +
+     'Có thể nhắc tiệm nhận viết thiệp, in biển tên miễn phí, thiết kế theo yêu cầu. Kết bằng lời mời inbox/gọi đặt hoặc 1 câu hỏi gợi bình luận. KHÔNG bịa giá, khuyến mãi, chuyện khách cụ thể.\n');
+  yc += 'Logo/chữ "Forentino" trên ảnh là thương hiệu CỦA TIỆM MÌNH. Băng rôn, thiệp, biển chúc mừng trên sản phẩm là của khách: KHÔNG chép tên người/công ty ghi trên đó.\n' +
+    'Dài khoảng 80–180 chữ, xuống dòng thoáng, dễ đọc trên điện thoại, vài emoji vừa phải. Văn bản thuần, không dùng * hay #. ' +
+    'KHÔNG viết hashtag, địa chỉ, số điện thoại (máy tự gắn đoạn cuối).\n' +
+    'Tiêu đề (tieu_de): 3–7 chữ, không emoji, không trùng: ' + JSON.stringify(daViet) + '\n' +
+    'Trả JSON: {"thay_trong_anh": "<liệt kê ngắn>", "tieu_de": "<tiêu đề>", "bai_viet": "<bài hoàn chỉnh>"}';
+  var o = jsonGemini_(p, [anh, { text: yc }]);
   if (!o.bai_viet) throw new Error('Gemini trả thiếu bài');
-  themDong_(p.ma, '', o.tieu_de, lamSach_(o.bai_viet), f0.getId(), 'Album: ' + chon.album);
-  ghiLog_(p.ma, 'viết bài (' + chon.album + ', chủ đề ' + (soBai % CHU_DE_HOA.length + 1) + '): ' + o.tieu_de, 'OK');
+  themDong_(p.ma, '', o.tieu_de, lamSach_(o.bai_viet), f0.getId(), 'Album: ' + chon.album + ' · Chủ đề: ' + chuDe);
+  var rr = bangBai_().getLastRow();
+  bangBai_().getRange(rr, C['Lịch đăng']).setNumberFormat('@').setValue(k.kl);
+  bangBai_().getRange(rr, C['Loại']).setValue(k.loai);
+  ghiLog_(p.ma, 'viết bài ' + k.kl + ' (' + k.loai + '): ' + o.tieu_de, 'OK');
   return true;
 }
 
