@@ -184,7 +184,7 @@ function dongTiepTheo_(ma, tt) {
   var v = bangBai_().getDataRange().getValues(), best = -1, bestSo = 1e15;
   for (var i = 1; i < v.length; i++) {
     var t = v[i][C['Trạng thái'] - 1];
-    var hop = t === tt || (tt === 'Sẵn sàng' && t === 'Duyệt' && v[i][C['Video'] - 1]);
+    var hop = t === tt || (tt === 'Sẵn sàng' && t === 'Duyệt' && (v[i][C['Video'] - 1] || khongVideo_(ma)));
     if (v[i][C['Page'] - 1] !== ma || !hop) continue;
     var so = Number(v[i][C['Số'] - 1]) || (i + 1e9);
     if (so < bestSo) { bestSo = so; best = i + 1; }
@@ -234,17 +234,27 @@ function sanXuatTuAnh_(p) {
 
 /** Hoa: lấy ảnh hoa thật trong album (ảnh chưa dùng trước; dùng hết thì quay vòng ảnh dùng ít nhất),
  *  Gemini nhìn ảnh rồi viết bài tương tác theo một "góc viết" xoay vòng. */
-var GOC_HOA = [
-  'Kể một câu chuyện ngắn đời thường (người tặng – người nhận) gắn với bó hoa trong ảnh, kết bằng câu hỏi khiến người đọc muốn kể chuyện của mình',
-  'Ý nghĩa loài hoa / màu hoa trong ảnh: 3–4 ý ngắn gọn, bất ngờ, ít người biết',
-  'Mini game: đố tên loài hoa chính trong ảnh hoặc đoán có bao nhiêu bông, mời bình luận đáp án',
-  'Bình chọn A hay B: so sánh 2 kiểu tặng/kiểu phối hoặc 2 dịp tặng, mời mọi người chọn',
-  'Mẹo giữ hoa tươi lâu ở nhà: 3–5 mẹo thực tế, dễ làm',
-  'Gợi ý dịp nên tặng bó hoa này (sinh nhật, kỷ niệm, khai trương, xin lỗi, cảm ơn...) và nên viết lời nhắn gì kèm theo',
-  'Câu nói / thả thính / caption ngắn để người đọc mượn đăng kèm khi tặng hoa, mời họ sáng tác thêm dưới bình luận',
-  'Góc thư giãn: vài dòng cảm xúc nhẹ nhàng về hoa và cuộc sống, câu chữ đẹp, kết bằng câu hỏi nhẹ',
-  'Hỏi ý kiến: "Nếu được nhận bó này, bạn sẽ đặt ở đâu / tặng ai?", gợi tò mò để mọi người bình luận'
+var CHU_DE_HOA = [
+  'GIỚI THIỆU MẪU (kiểu A): hoa gì, màu gì, cách gói/cắm, hợp dịp nào — đúng như trong ảnh',
+  'BÌNH CHỌN / ĐỐ VUI: hỏi "bó này bạn tặng ai? A/B/C" hoặc đố đoán số bông / tên loài hoa, mời bình luận đáp án',
+  'Ý NGHĨA LOÀI HOA chính trong ảnh: 3–4 ý ngắn, dễ nhớ, ít người biết',
+  'Ý NGHĨA MÀU SẮC của bó hoa trong ảnh: màu này nói lên điều gì, hợp tặng ai',
+  'HOA THEO DỊP SẮP TỚI: {DIP}. Gợi ý vì sao mẫu trong ảnh hợp dịp này, nhắc khéo đặt sớm',
+  'GỢI Ý LỜI NHẮN GHI THIỆP: 3–4 câu ngắn để ghi thiệp kèm bó hoa này (cho mẹ, người yêu, thầy cô, bạn bè...), mời mọi người góp thêm câu',
+  'GỢI Ý TẶNG AI: bó này hợp tặng mẹ / vợ / người yêu / cô giáo / đối tác thế nào, hỏi người đọc định tặng ai',
+  'MẸO GIỮ HOA: nếu là hoa tươi thì 3–5 mẹo giữ tươi lâu; nếu là hoa sáp/hoa tiền/hoa bánh kẹo thì mẹo bảo quản cho bền đẹp'
 ];
+/** Dịp tặng hoa gần nhất trong ~60 ngày tới. */
+function dipSapToi_() {
+  var nay = new Date(), y = nay.getFullYear(), ds = [];
+  [[2, 14, 'Valentine 14/2'], [3, 8, 'Quốc tế Phụ nữ 8/3'], [5, 20, 'mùa tốt nghiệp – kỷ yếu'], [10, 20, 'Phụ nữ Việt Nam 20/10'],
+   [11, 20, 'Nhà giáo Việt Nam 20/11'], [12, 24, 'Giáng sinh – Noel']].forEach(function (d) {
+    [y, y + 1].forEach(function (n) { ds.push({ t: new Date(n, d[0] - 1, d[1]), ten: d[2] }); });
+  });
+  [[2027, 2, 6], [2028, 1, 26], [2029, 2, 13], [2030, 2, 3]].forEach(function (d) { ds.push({ t: new Date(d[0], d[1] - 1, d[2]), ten: 'Tết Nguyên đán (hoa chưng Tết, hoa tiền lì xì)' }); });
+  ds = ds.filter(function (d) { var k = (d.t - nay) / 864e5; return k >= -1 && k <= 60; }).sort(function (a, b) { return a.t - b.t; });
+  return ds.length ? ds[0].ten + ' (ngày ' + Utilities.formatDate(ds[0].t, TZ, 'dd/MM') + ')' : 'sinh nhật, kỷ niệm, khai trương';
+}
 function sanXuatTuAnhHoa_(p) {
   if (!p.thuMuc) return false;
   var dem = {}, demAlbum = {}, v = bangBai_().getDataRange().getValues(), soBai = 0;
@@ -267,19 +277,29 @@ function sanXuatTuAnhHoa_(p) {
   var chon = ds[0], f0 = chon.f;
   var blob = anhNho_(f0);
   ghiLog_(p.ma, 'chọn ảnh', ds.length + ' ảnh, quét ' + Math.round((Date.now() - tq) / 1000) + 's → ' + chon.album + '/' + f0.getName());
-  var kieuA = soBai % 2 === 0;
+  var chuDe = CHU_DE_HOA[soBai % CHU_DE_HOA.length].replace('{DIP}', dipSapToi_());
+  var kieuA = soBai % CHU_DE_HOA.length === 0;
   var daViet = tieuDeDaCo_(p.ma).slice(-40);
   var anh = { inlineData: { mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) } };
   var o = jsonGemini_(p, [anh, { text:
     'Ảnh này là sản phẩm THẬT của tiệm, thuộc album: "' + chon.album + '".\n' +
     'Bước 1: nhìn kỹ và liệt kê đúng những gì thấy trong ảnh (loại hoa, màu, cách bó/cắm/trang trí, phụ kiện, chữ in trên sản phẩm nếu có).\n' +
-    'Bước 2: viết 1 bài Facebook theo KIỂU ' + (kieuA ? 'A – GIỚI THIỆU SẢN PHẨM' : 'B – KÉO BÌNH LUẬN') + ' trong brief, bắt chước đúng giọng và bố cục của mẫu ' + (kieuA ? 'A' : 'B') + ' đã duyệt.\n' +
+    'Bước 2: viết 1 bài Facebook theo CHỦ ĐỀ: ' + chuDe + '.\n' +
+    'Giọng văn và bố cục bắt chước mẫu ' + (kieuA ? 'A' : 'B') + ' đã duyệt trong brief. Mở đầu bằng 1 câu thật cuốn hút, viết sáng tạo, gần gũi, dễ đọc trên điện thoại, vài emoji 🌸💐✨ vừa phải. Kết bằng 1 câu hỏi/lời mời bình luận.\n' +
     'Chỉ nói về sản phẩm trong ảnh. KHÔNG bịa chuyện, nhân vật, lời thoại, giá, khuyến mãi.\n' +
-    'Tiêu đề (tieu_de): câu ngắn 3–7 chữ, KHÔNG emoji, hấp dẫn, để in lên đầu video (vd: "Cốp xe ngập hoa mừng tốt nghiệp"). Không trùng: ' + JSON.stringify(daViet) + '\n' +
-    'Trả JSON: {"thay_trong_anh": "<liệt kê ngắn>", "tieu_de": "<tiêu đề>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
+    'KHÔNG viết hashtag, địa chỉ, số điện thoại (máy tự gắn đoạn cuối). Văn bản thuần, không dùng * hay #.\n' +
+    'Nếu trên sản phẩm/ảnh có logo, chữ hoặc watermark tên TIỆM KHÁC thì đặt logo_tiem_khac = true.\n' +
+    'Tiêu đề (tieu_de): câu ngắn 3–7 chữ, KHÔNG emoji. Không trùng: ' + JSON.stringify(daViet) + '\n' +
+    'Trả JSON: {"thay_trong_anh": "<liệt kê ngắn>", "logo_tiem_khac": false, "tieu_de": "<tiêu đề>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
+  if (o.logo_tiem_khac === true || o.logo_tiem_khac === 'true') {
+    themDong_(p.ma, '', '(ảnh có logo tiệm khác)', '', f0.getId(), 'Album: ' + chon.album);
+    bangBai_().getRange(bangBai_().getLastRow(), C['Trạng thái']).setValue('Bỏ');
+    ghiLog_(p.ma, 'bỏ ảnh ' + f0.getName(), 'có logo tiệm khác');
+    return true;
+  }
   if (!o.bai_viet) throw new Error('Gemini trả thiếu bài');
   themDong_(p.ma, '', o.tieu_de, lamSach_(o.bai_viet), f0.getId(), 'Album: ' + chon.album);
-  ghiLog_(p.ma, 'viết bài (' + chon.album + '): ' + o.tieu_de, 'OK');
+  ghiLog_(p.ma, 'viết bài (' + chon.album + ', chủ đề ' + (soBai % CHU_DE_HOA.length + 1) + '): ' + o.tieu_de, 'OK');
   return true;
 }
 
@@ -308,7 +328,7 @@ function sanXuatTuTao_(p) {
 function themDong_(ma, so, tieuDe, noiDung, anhGoc, chu) {
   var r = new Array(BAI_COLS.length).fill('');
   r[C['Page'] - 1] = ma; r[C['Số'] - 1] = so; r[C['Tiêu đề'] - 1] = tieuDe; r[C['Trạng thái'] - 1] = canDuyet_(ma) ? 'Chờ duyệt' : 'Chờ ghép';
-  r[C['Nội dung'] - 1] = noiDung; r[C['Ảnh gốc'] - 1] = anhGoc; r[C['Chữ trong ảnh'] - 1] = chu;
+  r[C['Nội dung'] - 1] = ganChan_(ma, noiDung); r[C['Ảnh gốc'] - 1] = anhGoc; r[C['Chữ trong ảnh'] - 1] = chu;
   r[C['Lần ghép'] - 1] = 0; r[C['Tạo lúc'] - 1] = new Date();
   bangBai_().appendRow(r);
 }
@@ -321,6 +341,19 @@ function anhNho_(f) {
   } catch (e) {}
   var b = f.getBlob(); if (b.getBytes().length > 15e6) throw new Error('Ảnh quá nặng: ' + f.getName());
   return b;
+}
+/** Page chỉ đăng ẢNH, không làm video (CaiDat KHONG_VIDEO, mặc định HOA). */
+function khongVideo_(ma) {
+  var s = cfg_('KHONG_VIDEO') || 'HOA';
+  return s.split(',').map(function (x) { return x.trim().toUpperCase(); }).indexOf(String(ma).toUpperCase()) >= 0;
+}
+/** Gắn đoạn cuối cố định (CaiDat CHAN_BAI_<MÃ>): hashtag + địa chỉ + SĐT. Bỏ hashtag Gemini tự thêm để khỏi trùng. */
+function ganChan_(ma, t) {
+  var chan = cfg_('CHAN_BAI_' + String(ma).toUpperCase());
+  if (!chan) return t;
+  var dong = String(t).split('\n');
+  while (dong.length && /^\s*(#\S+\s*)*$/.test(dong[dong.length - 1])) dong.pop();
+  return dong.join('\n').trim() + '\n\n' + chan.replace(/\\n/g, '\n');
 }
 function canDuyet_(ma) {
   return cfg_('DUYET_TRUOC').split(',').map(function (x) { return x.trim().toUpperCase(); }).indexOf(String(ma).toUpperCase()) >= 0;
@@ -430,6 +463,7 @@ function guiGhep_(t0) {
   cacPage_().forEach(function (p) { pages[p.ma] = p; });
   for (var i = 1; i < v.length && Date.now() - t0 < HET_GIO; i++) {
     var tt = v[i][C['Trạng thái'] - 1], row = i + 1;
+    if (khongVideo_(v[i][C['Page'] - 1])) continue;   // page chỉ đăng ảnh (Hoa): không ghép video
     var coVideo = !!v[i][C['Video'] - 1], coJob = !!v[i][C['Job'] - 1];
     var guiLuc = new Date(v[i][C['Đăng lúc'] - 1] || 0).getTime(), lau = Date.now() - guiLuc > 30 * 60 * 1000;
     var tre = (tt === 'Đang ghép' || ((tt === 'Chờ duyệt' || tt === 'Duyệt') && coJob && !coVideo)) && lau;
@@ -522,16 +556,16 @@ function dangDong_(row, p) {
   var noiDung = String(g('Nội dung')), tieuDe = String(g('Tiêu đề')), loi = [];
   // Facebook
   if (!g('Facebook') && p.fbId) {
-    try { s.getRange(row, C['Facebook']).setValue(dangFB_(p, noiDung, DriveApp.getFileById(g('Ảnh đăng')).getBlob())); }
+    try { s.getRange(row, C['Facebook']).setValue(dangFB_(p, noiDung, DriveApp.getFileById(g('Ảnh đăng') || g('Ảnh gốc')).getBlob())); }
     catch (e) { loi.push('Facebook: ' + e.message); }
   }
   // YouTube Shorts
-  if (!g('YouTube') && p.ytToken) {
+  if (!g('YouTube') && p.ytToken && g('Video')) {
     try { s.getRange(row, C['YouTube']).setValue(dangYT_(p, tieuDe, noiDung, DriveApp.getFileById(g('Video')).getBlob())); }
     catch (e) { loi.push('YouTube: ' + e.message); }
   }
   // TikTok qua Buffer
-  if (!g('TikTok') && p.buffer) {
+  if (!g('TikTok') && p.buffer && g('Video')) {
     try { s.getRange(row, C['TikTok']).setValue(dangTikTok_(p, tieuDe, noiDung, g('Video'))); }
     catch (e) { loi.push('TikTok: ' + e.message); }
   }
