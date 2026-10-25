@@ -288,15 +288,9 @@ function sanXuatTuAnhHoa_(p) {
     'Giọng văn và bố cục bắt chước mẫu ' + (kieuA ? 'A' : 'B') + ' đã duyệt trong brief. Mở đầu bằng 1 câu thật cuốn hút, viết sáng tạo, gần gũi, dễ đọc trên điện thoại, vài emoji 🌸💐✨ vừa phải. Kết bằng 1 câu hỏi/lời mời bình luận.\n' +
     'Chỉ nói về sản phẩm trong ảnh. KHÔNG bịa chuyện, nhân vật, lời thoại, giá, khuyến mãi.\n' +
     'KHÔNG viết hashtag, địa chỉ, số điện thoại (máy tự gắn đoạn cuối). Văn bản thuần, không dùng * hay #.\n' +
-    'Nếu trên sản phẩm/ảnh có logo, chữ hoặc watermark tên TIỆM KHÁC thì đặt logo_tiem_khac = true.\n' +
+    'Logo/chữ "Forentino" trên ảnh là thương hiệu CỦA TIỆM MÌNH (được nhắc tới nếu hợp). Băng rôn, thiệp, biển chúc mừng trên sản phẩm là của khách: KHÔNG chép tên người/công ty ghi trên đó vào bài.\n' +
     'Tiêu đề (tieu_de): câu ngắn 3–7 chữ, KHÔNG emoji. Không trùng: ' + JSON.stringify(daViet) + '\n' +
-    'Trả JSON: {"thay_trong_anh": "<liệt kê ngắn>", "logo_tiem_khac": false, "tieu_de": "<tiêu đề>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
-  if (o.logo_tiem_khac === true || o.logo_tiem_khac === 'true') {
-    themDong_(p.ma, '', '(ảnh có logo tiệm khác)', '', f0.getId(), 'Album: ' + chon.album);
-    bangBai_().getRange(bangBai_().getLastRow(), C['Trạng thái']).setValue('Bỏ');
-    ghiLog_(p.ma, 'bỏ ảnh ' + f0.getName(), 'có logo tiệm khác');
-    return true;
-  }
+    'Trả JSON: {"thay_trong_anh": "<liệt kê ngắn>", "tieu_de": "<tiêu đề>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
   if (!o.bai_viet) throw new Error('Gemini trả thiếu bài');
   themDong_(p.ma, '', o.tieu_de, lamSach_(o.bai_viet), f0.getId(), 'Album: ' + chon.album);
   ghiLog_(p.ma, 'viết bài (' + chon.album + ', chủ đề ' + (soBai % CHU_DE_HOA.length + 1) + '): ' + o.tieu_de, 'OK');
