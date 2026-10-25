@@ -1,4 +1,4 @@
-function chayChanDoan() { chanDoanGemini(); }
+function chayChanDoan() { guiGhep_(Date.now()); }
 /**
  * TRUNG TÂM 3 PAGE — Bè Gỗ Trên Sông · Học cùng Ci nhé · Chuyên hoa tại Thái Bình
  * Một bảng Google Sheets điều khiển: tự viết bài (Gemini), tự tạo ảnh (Ci, Hoa),
@@ -420,7 +420,7 @@ function guiGhep_(t0) {
         headers: { Authorization: 'Bearer ' + cfg_('GITHUB_TOKEN'), Accept: 'application/vnd.github+json' },
         payload: JSON.stringify({ event_type: 'render', client_payload: {
           job: job, token: token, image_url: linkTai_(anh.getId()), logo_url: logoUrl,
-          title: String(v[i][C['Tiêu đề'] - 1]), style: p.kieu, callback: ScriptApp.getService().getUrl() } }) });
+          title: String(v[i][C['Tiêu đề'] - 1]), style: p.kieu, callback: cfg_('WEBAPP_URL') || ScriptApp.getService().getUrl() } }) });
       if (res.getResponseCode() !== 204) throw new Error('GitHub ' + res.getResponseCode() + ': ' + res.getContentText().substring(0, 200));
       PropertiesService.getScriptProperties().setProperty('JOB_' + job, token);
       s.getRange(row, C['Job']).setValue(job);
