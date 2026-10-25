@@ -1,0 +1,40 @@
+name: gian-bep-ghep-video
+on:
+  repository_dispatch:
+    types: [gianbep]
+  workflow_dispatch:
+concurrency:
+  group: gianbep-${{ github.event.client_payload.job || github.run_id }}
+jobs:
+  ghep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ẩn thông tin nhạy cảm trong log
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          echo "::add-mask::${{ github.event.client_payload.token }}"
+          echo "::add-mask::${{ github.event.client_payload.callback }}"
+          echo "::add-mask::${{ github.event.client_payload.pexels_key }}"
+      - name: Cài công cụ
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install --quiet pillow edge-tts gTTS
+          mkdir -p fonts
+          curl -sSfL -o fonts/BeVietnamPro-Bold.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/bevietnampro/BeVietnamPro-Bold.ttf
+          curl -sSfL -o fonts/BeVietnamPro-SemiBold.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/bevietnampro/BeVietnamPro-SemiBold.ttf
+      - name: Ghép video và gửi về Apps Script
+        if: github.event_name == 'repository_dispatch'
+        env:
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: python gianbep/ghep.py
+      - name: Chạy thử (bấm tay, không gửi đi đâu)
+        if: github.event_name == 'workflow_dispatch'
+        run: python gianbep/ghep.py gianbep/mau_thu.json
+      - name: Lưu bản sao video
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-${{ github.run_id }}
+          path: out.mp4
+          retention-days: 7
