@@ -192,7 +192,9 @@ function dongTiepTheo_(ma, tt) {
 /* ============================ SẢN XUẤT BÀI ============================ */
 function sanXuat_(p) {
   try {
-    return p.nguon === 'ANH_CO_SAN' ? sanXuatTuAnh_(p) : sanXuatTuTao_(p);
+    if (p.nguon === 'ANH_CO_SAN') return sanXuatTuAnh_(p);
+    if (p.nguon === 'ANH_HOA') return sanXuatTuAnhHoa_(p);
+    return sanXuatTuTao_(p);
   } catch (e) {
     ghiLog_(p.ma, 'sản xuất', 'LỖI: ' + e.message); canhBao_(p.ten + ' — lỗi khi chuẩn bị bài: ' + e.message);
     return false;
@@ -224,6 +226,54 @@ function sanXuatTuAnh_(p) {
     'Dòng cuối: #BeGoTrenSong #SoiTamSuaMinh #PhatPhapUngDung và 3–4 hashtag hợp chủ đề. Chỉ trả về caption.' }]);
   themDong_(p.ma, so, a.tieu_de, lamSach_(bai), f0.getId(), a.chu_trong_anh);
   ghiLog_(p.ma, 'viết bài ' + so, 'OK');
+  return true;
+}
+
+/** Hoa: lấy ảnh hoa thật trong album (ảnh chưa dùng trước; dùng hết thì quay vòng ảnh dùng ít nhất),
+ *  Gemini nhìn ảnh rồi viết bài tương tác theo một "góc viết" xoay vòng. */
+var GOC_HOA = [
+  'Kể một câu chuyện ngắn đời thường (người tặng – người nhận) gắn với bó hoa trong ảnh, kết bằng câu hỏi khiến người đọc muốn kể chuyện của mình',
+  'Ý nghĩa loài hoa / màu hoa trong ảnh: 3–4 ý ngắn gọn, bất ngờ, ít người biết',
+  'Mini game: đố tên loài hoa chính trong ảnh hoặc đoán có bao nhiêu bông, mời bình luận đáp án',
+  'Bình chọn A hay B: so sánh 2 kiểu tặng/kiểu phối hoặc 2 dịp tặng, mời mọi người chọn',
+  'Mẹo giữ hoa tươi lâu ở nhà: 3–5 mẹo thực tế, dễ làm',
+  'Gợi ý dịp nên tặng bó hoa này (sinh nhật, kỷ niệm, khai trương, xin lỗi, cảm ơn...) và nên viết lời nhắn gì kèm theo',
+  'Câu nói / thả thính / caption ngắn để người đọc mượn đăng kèm khi tặng hoa, mời họ sáng tác thêm dưới bình luận',
+  'Góc thư giãn: vài dòng cảm xúc nhẹ nhàng về hoa và cuộc sống, câu chữ đẹp, kết bằng câu hỏi nhẹ',
+  'Hỏi ý kiến: "Nếu được nhận bó này, bạn sẽ đặt ở đâu / tặng ai?", gợi tò mò để mọi người bình luận'
+];
+function sanXuatTuAnhHoa_(p) {
+  if (!p.thuMuc) return false;
+  var dem = {}, v = bangBai_().getDataRange().getValues(), soBai = 0;
+  for (var i = 1; i < v.length; i++) if (v[i][C['Page'] - 1] === p.ma) {
+    soBai++; var g = v[i][C['Ảnh gốc'] - 1]; dem[g] = (dem[g] || 0) + 1;
+  }
+  var it = DriveApp.getFolderById(p.thuMuc).getFiles(), ds = [];
+  while (it.hasNext()) {
+    var f = it.next();
+    if (f.getMimeType().indexOf('image/') !== 0) continue;
+    ds.push({ f: f, n: dem[f.getId()] || 0, t: f.getDateCreated().getTime() });
+  }
+  if (!ds.length) { canhBaoMotLan_('HET_ANH_' + p.ma, p.ten + ': album ảnh hoa đang trống, anh thả ảnh vào nhé.'); return false; }
+  ds.sort(function (a, b) { return a.n - b.n || a.t - b.t; });
+  if (ds[0].n > 0) canhBaoMotLan_('QUAYVONG_' + p.ma, p.ten + ': đã dùng hết ảnh mới, máy đang dùng lại ảnh cũ với góc viết khác. Anh thả thêm ảnh hoa nhé.');
+  var f0 = ds[0].f, blob = f0.getBlob();
+  if (blob.getBytes().length > 15e6) throw new Error('Ảnh quá nặng: ' + f0.getName());
+  var goc = GOC_HOA[soBai % GOC_HOA.length];
+  var daViet = tieuDeDaCo_(p.ma).slice(-40);
+  var anh = { inlineData: { mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) } };
+  var o = jsonGemini_(p, [anh, { text:
+    'Đây là ảnh hoa THẬT của cửa hàng. Nhìn kỹ ảnh: loài hoa, màu sắc, kiểu bó/giỏ/lẵng, cảm giác. Chỉ tả đúng cái có trong ảnh, không bịa loài hoa không có.\n' +
+    'Viết 1 bài Facebook theo góc: ' + goc + '.\n' +
+    'Yêu cầu: câu mở đầu thật cuốn (gây tò mò/cảm xúc) để người lướt phải dừng lại; câu ngắn, xuống dòng nhiều, dễ đọc trên điện thoại; 2–4 emoji hợp hoa; ' +
+    'giọng gần gũi, vui, chân thành, không sáo rỗng, không quảng cáo lộ liễu; kết bằng 1 câu hỏi/lời mời bình luận cụ thể. ' +
+    'Văn bản thuần, không dùng * hay # để định dạng (trừ hashtag cuối). ' +
+    'Theo brief: khoảng 1/4 số bài mới có lời mời nhẹ nhàng nhắn tin page để đặt hoa; bài này ' + (soBai % 4 === 3 ? 'CÓ' : 'KHÔNG') + ' kèm lời mời đó. ' +
+    'Dòng cuối: #ChuyenHoaThaiBinh #HoaTuoiThaiBinh và 2–3 hashtag hợp bài. Tiêu đề không trùng: ' + JSON.stringify(daViet) + '\n' +
+    'Trả JSON: {"tieu_de": "<tiêu đề ngắn 3–7 chữ>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
+  if (!o.bai_viet) throw new Error('Gemini trả thiếu bài');
+  themDong_(p.ma, '', o.tieu_de, lamSach_(o.bai_viet), f0.getId(), '');
+  ghiLog_(p.ma, 'viết bài hoa: ' + o.tieu_de, 'OK');
   return true;
 }
 
@@ -274,7 +324,7 @@ function thuMucCon_(ten) {
 }
 function lamSach_(t) {
   return String(t).replace(/\*\*/g, '').replace(/^#{1,6}\s+/gm, '')
-    .replace(/^(BeGoTrenSong|HocCungCiNhe|ChuyenHoaThaiBinh)/m, '#$1').trim();
+    .replace(/(^|\s)(BeGoTrenSong|HocCungCiNhe|ChuyenHoaThaiBinh|HoaTuoiThaiBinh)/g, function (m0, a, b) { return a + '#' + b; }).replace(/##/g, '#').trim();
 }
 
 /* ============================ GEMINI ============================ */
