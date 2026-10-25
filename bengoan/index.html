@@ -3,14 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bé Ngoan Giúp Mẹ</title>
 <meta name="theme-color" content="#f6dc8c">
-<meta name="description" content="Bé Ngoan Giúp Mẹ – trò chơi việc tốt cho bé, từ mẫu giáo đến cấp 2.">
+<meta name="description" content="Bé Ngoan Giúp Mẹ – 120 trò chơi việc tốt cho bé từ mẫu giáo đến cấp 2: giúp mẹ việc nhà, lễ phép ở trường, giúp đỡ mọi người.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
-<title>Bé Ngoan Giúp Mẹ</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="fonts/fonts.css">
 <style>
 /* Sân gạch nhà bà: tường vôi vàng, gạch đỏ, hoa đỏ bé ngoan. Một thế giới ấm duy nhất, không đổi theo giao diện tối. */
 :root{
@@ -1650,8 +1651,7 @@ function home(first){
   <h2 class="sec">Cấp 2 <span class="cnt">${LV3.filter(g=>t.games[g.id]).length} / ${LV3.length} hoa</span></h2><div class="tiles">${LV3.map(tile).join('')}</div>
   <div class="house" style="margin-top:16px">
   <button class="room wide" id="bPhieu"><canvas></canvas><div><b>Phiếu bé ngoan</b><span>Xem hoa đỏ con đã nhận trong tuần</span></div></button>
-  <button class="room wide" id="bMe"><canvas></canvas><div><b>Góc của bố mẹ</b><span>Giao việc, duyệt ảnh, quản lý các bé</span></div></button></div>
-  <p class="note">Bản chơi thử. Giọng đọc dùng giọng có sẵn của điện thoại; bản chính thức sẽ thu giọng người thật.</p></div>`;
+  <button class="room wide" id="bMe"><canvas></canvas><div><b>Góc của bố mẹ</b><span>Giao việc, duyệt ảnh, quản lý các bé</span></div></button></div></div>`;
   paintAvatars();
   screen.querySelectorAll('[data-g]').forEach(b=>{const g=b.dataset.g;b.onclick=()=>{audio();play(g);};});
   screen.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{audio();S.diff=b.dataset.d;save();ding();home();say('Mức '+DIFF[S.diff].name+'.');});
@@ -1727,5 +1727,6 @@ start();
 })();
 </script>
 
+<script>if("serviceWorker" in navigator){addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});}</script>
 </body>
 </html>

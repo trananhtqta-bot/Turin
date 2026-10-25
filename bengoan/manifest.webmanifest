@@ -1,0 +1,19 @@
+{
+  "id": "/Turin/bengoan/",
+  "name": "Bé Ngoan Giúp Mẹ",
+  "short_name": "Bé Ngoan",
+  "description": "120 trò chơi việc tốt cho bé từ mẫu giáo đến cấp 2: giúp mẹ việc nhà, lễ phép ở trường, giúp đỡ mọi người. Có phiếu bé ngoan, thi đua cả nhà và phần thưởng.",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6dc8c",
+  "theme_color": "#f6dc8c",
+  "categories": ["education", "kids", "games"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
