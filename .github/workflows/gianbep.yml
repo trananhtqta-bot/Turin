@@ -5,6 +5,8 @@ on:
   workflow_dispatch:
 concurrency:
   group: gianbep-${{ github.event.client_payload.job || github.run_id }}
+permissions:
+  contents: write
 jobs:
   ghep:
     runs-on: ubuntu-latest
@@ -31,7 +33,12 @@ jobs:
         run: python gianbep/ghep.py
       - name: Chạy thử (bấm tay, không gửi đi đâu)
         if: github.event_name == 'workflow_dispatch'
-        run: python gianbep/ghep.py gianbep/mau_thu.json
+        run: |
+          python gianbep/ghep.py gianbep/mau_thu.json 2>&1 | tee ghep.log
+          mkdir -p /tmp/kq && cp out.mp4 ghep.log /tmp/kq/
+          cd /tmp/kq && git init -q -b ket-qua-thu && git add . \
+            && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm "video thử" \
+            && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ket-qua-thu
       - name: Lưu bản sao video
         uses: actions/upload-artifact@v4
         with:
