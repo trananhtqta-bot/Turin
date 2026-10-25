@@ -251,22 +251,20 @@ function sanXuatTuAnhHoa_(p) {
     var al = String(v[i][C['Chữ trong ảnh'] - 1]).replace(/^Album:\s*/, ''); demAlbum[al] = (demAlbum[al] || 0) + 1;
   }
   // Mỗi thư mục con = 1 album (Hoa tươi, Hoa sáp, Hoa bánh kẹo...). Ảnh để ngoài cùng tính là album "Hoa".
-  var goc = DriveApp.getFolderById(p.thuMuc), ds = [];
-  function quet(folder, ten) {
-    var it = folder.getFiles();
-    while (it.hasNext()) {
-      var f = it.next(); if (f.getMimeType().indexOf('image/') !== 0) continue;
-      ds.push({ f: f, album: ten, n: dem[f.getId()] || 0, a: demAlbum[ten] || 0, t: f.getDateCreated().getTime() });
-    }
+  var tq = Date.now(), goc = DriveApp.getFolderById(p.thuMuc), ds = [];
+  function quet(folderId, ten) {
+    var it = DriveApp.searchFiles("'" + folderId + "' in parents and mimeType contains 'image/' and trashed = false");
+    while (it.hasNext()) { var f = it.next(), id = f.getId(); ds.push({ f: f, album: ten, n: dem[id] || 0, a: demAlbum[ten] || 0, r: Math.random() }); }
   }
-  quet(goc, 'Hoa');
-  var sub = goc.getFolders(); while (sub.hasNext()) { var fd = sub.next(); quet(fd, fd.getName().trim()); }
+  quet(goc.getId(), 'Hoa');
+  var sub = goc.getFolders(); while (sub.hasNext()) { var fd = sub.next(); quet(fd.getId(), fd.getName().trim()); }
   if (!ds.length) { canhBaoMotLan_('HET_ANH_' + p.ma, p.ten + ': album ảnh hoa đang trống, anh thả ảnh vào nhé.'); return false; }
   // Ưu tiên ảnh chưa dùng; giữa các album thì xoay vòng album ít bài nhất để page đa dạng
-  ds.sort(function (x, y) { return x.n - y.n || x.a - y.a || x.t - y.t; });
+  ds.sort(function (x, y) { return x.n - y.n || x.a - y.a || x.r - y.r; });
   if (ds[0].n > 0) canhBaoMotLan_('QUAYVONG_' + p.ma, p.ten + ': đã dùng hết ảnh mới, máy đang dùng lại ảnh cũ với góc viết khác. Anh thả thêm ảnh hoa nhé.');
-  var chon = ds[0], f0 = chon.f, blob = f0.getBlob();
-  if (blob.getBytes().length > 15e6) throw new Error('Ảnh quá nặng: ' + f0.getName());
+  var chon = ds[0], f0 = chon.f;
+  var blob = anhNho_(f0);
+  ghiLog_(p.ma, 'chọn ảnh', ds.length + ' ảnh, quét ' + Math.round((Date.now() - tq) / 1000) + 's → ' + chon.album + '/' + f0.getName());
   var kieuA = soBai % 2 === 0;
   var daViet = tieuDeDaCo_(p.ma).slice(-40);
   var anh = { inlineData: { mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) } };
@@ -311,6 +309,16 @@ function themDong_(ma, so, tieuDe, noiDung, anhGoc, chu) {
   r[C['Nội dung'] - 1] = noiDung; r[C['Ảnh gốc'] - 1] = anhGoc; r[C['Chữ trong ảnh'] - 1] = chu;
   r[C['Lần ghép'] - 1] = 0; r[C['Tạo lúc'] - 1] = new Date();
   bangBai_().appendRow(r);
+}
+/** Ảnh thu nhỏ ~1280px để gửi Gemini cho nhanh (ảnh gốc vẫn giữ nguyên để đăng). */
+function anhNho_(f) {
+  try {
+    var r = UrlFetchApp.fetch('https://drive.google.com/thumbnail?sz=w1280&id=' + f.getId(), {
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+    if (r.getResponseCode() === 200 && /image/.test(r.getHeaders()['Content-Type'] || '')) return r.getBlob();
+  } catch (e) {}
+  var b = f.getBlob(); if (b.getBytes().length > 15e6) throw new Error('Ảnh quá nặng: ' + f.getName());
+  return b;
 }
 function canDuyet_(ma) {
   return cfg_('DUYET_TRUOC').split(',').map(function (x) { return x.trim().toUpperCase(); }).indexOf(String(ma).toUpperCase()) >= 0;
