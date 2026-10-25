@@ -665,8 +665,8 @@ function dangDong_(row, p) {
     catch (e) { loi.push('YouTube: ' + e.message); }
   }
   // TikTok qua Buffer
-  if (!g('TikTok') && p.buffer && g('Video')) {
-    try { s.getRange(row, C['TikTok']).setValue(dangTikTok_(p, tieuDe, noiDung, g('Video'))); }
+  if (!g('TikTok') && p.buffer && (g('Video') || khongVideo_(p.ma))) {
+    try { s.getRange(row, C['TikTok']).setValue(dangTikTok_(p, tieuDe, noiDung, g('Video'), g('Ảnh gốc'))); }
     catch (e) { loi.push('TikTok: ' + e.message); }
   }
   s.getRange(row, C['Đăng lúc']).setValue(new Date());
@@ -710,10 +710,11 @@ function dangYT_(p, tieuDe, moTa, blob) {
   return 'https://youtube.com/shorts/' + j.id;
 }
 
-function dangTikTok_(p, tieuDe, noiDung, videoId) {
+function dangTikTok_(p, tieuDe, noiDung, videoId, anhId) {
   var q = 'mutation($i: CreatePostInput!){ createPost(input:$i){ __typename ... on PostActionSuccess { post { id status } } ... on MutationError { message } } }';
   var bien = { i: { channelId: p.buffer, text: noiDung.substring(0, 2100), mode: 'shareNow', schedulingType: 'automatic',
-    assets: [{ video: { url: linkTai_(videoId) } }], metadata: { tiktok: { title: tieuDe.substring(0, 90), isAiGenerated: p.nguon === 'TU_TAO' } } } };
+    assets: videoId ? [{ video: { url: linkTai_(videoId) } }] : [{ image: { url: (function () { congKhai_(DriveApp.getFileById(anhId)); return linkTai_(anhId); })() } }],
+    metadata: { tiktok: { title: tieuDe.substring(0, 90), isAiGenerated: p.nguon === 'TU_TAO' } } } };   // không có video (page Hoa) → đăng TikTok chế độ ảnh
   var res = UrlFetchApp.fetch(cfg_('BUFFER_API') || 'https://api.buffer.com', { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     headers: { Authorization: 'Bearer ' + cfg_('BUFFER_KEY') }, payload: JSON.stringify({ query: q, variables: bien }) });
   var j = JSON.parse(res.getContentText());
