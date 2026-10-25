@@ -207,6 +207,8 @@ function dongTiepTheo_(ma, tt) {
 /* ============================ SẢN XUẤT BÀI ============================ */
 function vietBaiHoaNgay() {
   var t0 = Date.now(), n = 0;
+  if (!ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'nhipChay'; }))
+    ScriptApp.newTrigger('nhipChay').timeBased().everyMinutes(15).create();   // đảm bảo máy tự chạy 15 phút/lần
   cacPage_().filter(function (p) { return coLich_(p.ma); }).forEach(function (p) {
     while (Date.now() - t0 < HET_GIO && sanXuat_(p)) n++;
   });
