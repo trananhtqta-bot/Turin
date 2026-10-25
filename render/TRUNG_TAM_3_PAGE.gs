@@ -487,7 +487,8 @@ function goiGemini_(model, body) {
     if (code === 400 && body.generationConfig && body.generationConfig.thinkingConfig) {   // mẫu không hỗ trợ chỉnh mức "suy nghĩ"
       delete body.generationConfig.thinkingConfig; continue;
     }
-    if (code === 429 || code >= 500) { loi = 'mã ' + code; Utilities.sleep(10000 * (t + 1)); continue; }
+    if (code === 429) throw new Error('HET_LUOT ' + model);   // hết lượt miễn phí của mẫu này → đổi mẫu khác
+    if (code >= 500) { loi = 'mã ' + code; Utilities.sleep(8000 * (t + 1)); continue; }
     var j = JSON.parse(res.getContentText());
     if (code !== 200) throw new Error('Gemini ' + code + ': ' + (j.error ? j.error.message : '').substring(0, 250));
     return j;
@@ -503,9 +504,23 @@ function briefCua_(p) {
 function textGemini_(p, parts, json) {
   var gc = { temperature: 0.85, maxOutputTokens: 8192, thinkingConfig: { thinkingLevel: 'low' } };
   if (json) gc.responseMimeType = 'application/json';
-  var j = goiGemini_(cfg_('GEMINI_TEXT_MODEL') || 'gemini-flash-latest', {
-    systemInstruction: { parts: [{ text: 'Bạn viết nội dung cho page "' + p.ten + '". Tuân thủ tuyệt đối brief sau:\n\n' + briefCua_(p) }] },
-    contents: [{ role: 'user', parts: parts }], generationConfig: gc });
+  var body = { systemInstruction: { parts: [{ text: 'Bạn viết nội dung cho page "' + p.ten + '". Tuân thủ tuyệt đối brief sau:\n\n' + briefCua_(p) }] },
+    contents: [{ role: 'user', parts: parts }], generationConfig: gc };
+  // Mẫu chính + mẫu dự phòng (CaiDat GEMINI_DU_PHONG). Mẫu nào hết lượt hôm nay thì nhớ lại, bỏ qua tới hết ngày.
+  var ds = [cfg_('GEMINI_TEXT_MODEL') || 'gemini-3.5-flash'].concat((cfg_('GEMINI_DU_PHONG') || 'gemini-3-flash-preview,gemini-3.5-flash-lite,gemini-3.1-flash-lite').split(','))
+    .map(function (x) { return x.trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; });
+  var c = CacheService.getScriptCache(), hom = Utilities.formatDate(new Date(), TZ, 'yyyyMMdd'), j = null, loiCuoi = '';
+  for (var m = 0; m < ds.length && !j; m++) {
+    if (c.get('HETLUOT_' + hom + '_' + ds[m])) continue;
+    try { j = goiGemini_(ds[m], JSON.parse(JSON.stringify(body))); }
+    catch (e) {
+      loiCuoi = e.message;
+      if (/HET_LUOT/.test(e.message)) { c.put('HETLUOT_' + hom + '_' + ds[m], '1', 3600); continue; }   // khóa 1 tiếng rồi thử lại
+      if (/quá tải|404|not found/i.test(e.message)) continue;
+      throw e;
+    }
+  }
+  if (!j) throw new Error('Các mẫu Gemini đều hết lượt/quá tải (' + loiCuoi + '), lượt sau máy thử lại');
   var ps = (((j.candidates || [])[0] || {}).content || {}).parts || [];
   var t = ps.map(function (x) { return x.text || ''; }).join('').trim();
   if (!t) throw new Error('Gemini không trả nội dung');
