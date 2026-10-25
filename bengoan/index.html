@@ -62,8 +62,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--voi);color:var(-
 .phieu{max-width:520px;margin:0 auto;background:var(--giay);border:3px solid var(--muc);border-radius:20px;padding:16px;background-image:repeating-linear-gradient(0deg,transparent 0 31px,rgba(224,50,42,.12) 31px 32px)}
 .phieu h2{font-family:var(--font-display);font-size:30px;color:var(--hoa);margin:0;text-align:center;letter-spacing:.5px}
 .phieu .who{text-align:center;font-weight:800;font-size:18px;margin:2px 0 12px}
-.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-.day{background:#fff;border:2px solid var(--muc);border-radius:12px;padding:4px 2px 6px;text-align:center;min-height:86px}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.day{background:#fff;border:2px solid var(--muc);border-radius:12px;padding:4px 1px 6px;text-align:center;min-height:86px;min-width:0}
+@media (max-width:400px){.day i{font-size:10.5px;letter-spacing:0}.day .fl svg{width:13px;height:13px}.phieu{padding:12px 10px}}
 .day.today{background:#ffe9b3}
 .day i{display:block;font-style:normal;font-size:12px;font-weight:800;letter-spacing:.5px}
 .day .fl{display:flex;flex-wrap:wrap;justify-content:center;gap:1px;margin-top:4px}
@@ -735,7 +736,7 @@ budget(G,C){
   let bag=[],fx=[],last=performance.now(),r=0;
   const fmt=v=>v.toLocaleString('vi-VN')+'đ';
   const rd=()=>RS[r];
-  const L=()=>{const {w,h}=G,it=rd()?rd().shelf:[],cols=3,cw=Math.min(112,(w-32)/cols-8),ch=86;return{shelf:it.map((o,j)=>({...o,X:w/2+((j%cols)-1)*(cw+8),Y:h*.4+Math.floor(j/cols)*(ch+8),cw,ch})),pay:{X:w/2-80,Y:h-178,W:160,H:44}};};
+  const L=()=>{const {w,h}=G,it=rd()?rd().shelf:[],cols=3,cw=Math.min(112,(w-32)/cols-8),ch=80,nd=rd()?rd().need.length:3,top=Math.min(h*.4,52+44+nd*20+18+ch/2);return{shelf:it.map((o,j)=>({...o,X:w/2+((j%cols)-1)*(cw+8),Y:top+Math.floor(j/cols)*(ch+8),cw,ch})),pay:{X:w/2-80,Y:Math.max(h-178,top+ch*1.5+8+40),W:160,H:44}};};
   const total=()=>bag.reduce((a,b)=>a+b.p,0);
   function ask(){const x=rd();if(!x)return;const m='Mẹ dặn mua: '+x.need.join(', ')+'. Con có '+fmt(x.money)+'.';say(m);G.hint(m);}
   setTimeout(ask,500);
@@ -749,7 +750,7 @@ budget(G,C){
         if(total()>x.money){oops();const m='Quá số tiền rồi! Con chọn món rẻ hơn nhé.';say(m);G.hint(m);return;}
         ding();sparkle(fx,G.w/2,G.h*.25);const m='Đúng rồi! Còn thừa '+fmt(x.money-total())+'.';say(m);G.hint(m);r++;bag=[];if(r>=RS.length){G.hint(C.doneHint);G.win();}else setTimeout(ask,1500);}},
     draw(){const {x,w,h}=G,now=performance.now(),dt=Math.min(.05,(now-last)/1000);last=now;scene(x,w,h,'shop');const X=rd()||RS[RS.length-1],l=L();
-      x.fillStyle='#fff';x.strokeStyle='#3b2417';x.lineWidth=3;rrect(x,16,52,w-32,h*.4-100,14);x.fill();x.stroke();
+      x.fillStyle='#fff';x.strokeStyle='#3b2417';x.lineWidth=3;rrect(x,16,52,w-32,44+X.need.length*20,14);x.fill();x.stroke();
       x.fillStyle='#e0322a';x.font='800 17px "Baloo 2",sans-serif';x.textAlign='center';x.fillText('Mẹ dặn mua · có '+fmt(X.money),w/2,76);
       x.font='800 15px "Nunito",sans-serif';X.need.forEach((n,i)=>{const got=bag.some(b=>b.n===n);x.fillStyle=got?'#3d8b4f':'#3b2417';x.fillText((got?'✓ ':'• ')+n,w/2,98+i*20);});
       for(const o of l.shelf){const inb=bag.some(b=>b.id===o.id);x.fillStyle=inb?'#e9f6e4':'#fff8ea';x.strokeStyle=inb?'#3d8b4f':'#3b2417';x.lineWidth=inb?4:2.5;rrect(x,o.X-o.cw/2,o.Y-o.ch/2,o.cw,o.ch,12);x.fill();x.stroke();emo(x,o.e,o.X,o.Y-14,34);x.fillStyle='#3b2417';x.font='800 12px "Nunito",sans-serif';x.fillText(o.n,o.X,o.Y+18);x.fillStyle='#e0322a';x.font='800 13px "Nunito",sans-serif';x.fillText(fmt(o.p),o.X,o.Y+34);}
