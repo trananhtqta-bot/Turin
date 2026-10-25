@@ -183,7 +183,9 @@ function bangBai_() { return SpreadsheetApp.getActive().getSheetByName(SH.BAI); 
 function dongTiepTheo_(ma, tt) {
   var v = bangBai_().getDataRange().getValues(), best = -1, bestSo = 1e15;
   for (var i = 1; i < v.length; i++) {
-    if (v[i][C['Page'] - 1] !== ma || v[i][C['Trạng thái'] - 1] !== tt) continue;
+    var t = v[i][C['Trạng thái'] - 1];
+    var hop = t === tt || (tt === 'Sẵn sàng' && t === 'Duyệt' && v[i][C['Video'] - 1]);
+    if (v[i][C['Page'] - 1] !== ma || !hop) continue;
     var so = Number(v[i][C['Số'] - 1]) || (i + 1e9);
     if (so < bestSo) { bestSo = so; best = i + 1; }
   }
@@ -428,8 +430,11 @@ function guiGhep_(t0) {
   cacPage_().forEach(function (p) { pages[p.ma] = p; });
   for (var i = 1; i < v.length && Date.now() - t0 < HET_GIO; i++) {
     var tt = v[i][C['Trạng thái'] - 1], row = i + 1;
-    var tre = tt === 'Đang ghép' && (Date.now() - new Date(v[i][C['Đăng lúc'] - 1] || 0).getTime() > 30 * 60 * 1000);
-    if (tt !== 'Chờ ghép' && tt !== 'Duyệt' && !tre) continue;
+    var coVideo = !!v[i][C['Video'] - 1], coJob = !!v[i][C['Job'] - 1];
+    var guiLuc = new Date(v[i][C['Đăng lúc'] - 1] || 0).getTime(), lau = Date.now() - guiLuc > 30 * 60 * 1000;
+    var tre = (tt === 'Đang ghép' || ((tt === 'Chờ duyệt' || tt === 'Duyệt') && coJob && !coVideo)) && lau;
+    var moi = tt === 'Chờ ghép' || ((tt === 'Chờ duyệt' || tt === 'Duyệt') && !coJob && !coVideo);
+    if (!moi && !tre) continue;
     var lan = Number(v[i][C['Lần ghép'] - 1]) || 0;
     if (lan >= 3) { s.getRange(row, C['Trạng thái']).setValue('Lỗi'); s.getRange(row, C['Ghi chú']).setValue('Ghép video thất bại 3 lần');
       canhBao_('Bài "' + v[i][C['Tiêu đề'] - 1] + '": ghép video thất bại 3 lần.'); continue; }
@@ -450,7 +455,7 @@ function guiGhep_(t0) {
       PropertiesService.getScriptProperties().setProperty('JOB_' + job, token);
       s.getRange(row, C['Job']).setValue(job);
       s.getRange(row, C['Lần ghép']).setValue(lan + 1);
-      s.getRange(row, C['Trạng thái']).setValue('Đang ghép');
+      if (tt === 'Chờ ghép' || tt === 'Đang ghép') s.getRange(row, C['Trạng thái']).setValue('Đang ghép');   // bài chờ duyệt giữ nguyên trạng thái
       s.getRange(row, C['Đăng lúc']).setValue(new Date());
     } catch (e) {
       s.getRange(row, C['Ghi chú']).setValue(e.message); ghiLog_(p.ma, 'gửi ghép', 'LỖI: ' + e.message);
@@ -501,7 +506,7 @@ function doPost(e) {
     congKhai_(fv);
     s.getRange(row, C['Ảnh đăng']).setValue(fa.getId());
     s.getRange(row, C['Video']).setValue(fv.getId());
-    s.getRange(row, C['Trạng thái']).setValue('Sẵn sàng');
+    if (s.getRange(row, C['Trạng thái']).getValue() !== 'Chờ duyệt') s.getRange(row, C['Trạng thái']).setValue('Sẵn sàng');
     s.getRange(row, C['Đăng lúc']).setValue('');
     props.deleteProperty('JOB_' + d.job);
     return ContentService.createTextOutput('ok');
