@@ -244,36 +244,44 @@ var GOC_HOA = [
 ];
 function sanXuatTuAnhHoa_(p) {
   if (!p.thuMuc) return false;
-  var dem = {}, v = bangBai_().getDataRange().getValues(), soBai = 0;
+  var dem = {}, demAlbum = {}, v = bangBai_().getDataRange().getValues(), soBai = 0;
   for (var i = 1; i < v.length; i++) if (v[i][C['Page'] - 1] === p.ma) {
     soBai++; var g = v[i][C['Ảnh gốc'] - 1]; dem[g] = (dem[g] || 0) + 1;
+    var al = String(v[i][C['Chữ trong ảnh'] - 1]).replace(/^Album:\s*/, ''); demAlbum[al] = (demAlbum[al] || 0) + 1;
   }
-  var it = DriveApp.getFolderById(p.thuMuc).getFiles(), ds = [];
-  while (it.hasNext()) {
-    var f = it.next();
-    if (f.getMimeType().indexOf('image/') !== 0) continue;
-    ds.push({ f: f, n: dem[f.getId()] || 0, t: f.getDateCreated().getTime() });
+  // Mỗi thư mục con = 1 album (Hoa tươi, Hoa sáp, Hoa bánh kẹo...). Ảnh để ngoài cùng tính là album "Hoa".
+  var goc = DriveApp.getFolderById(p.thuMuc), ds = [];
+  function quet(folder, ten) {
+    var it = folder.getFiles();
+    while (it.hasNext()) {
+      var f = it.next(); if (f.getMimeType().indexOf('image/') !== 0) continue;
+      ds.push({ f: f, album: ten, n: dem[f.getId()] || 0, a: demAlbum[ten] || 0, t: f.getDateCreated().getTime() });
+    }
   }
+  quet(goc, 'Hoa');
+  var sub = goc.getFolders(); while (sub.hasNext()) { var fd = sub.next(); quet(fd, fd.getName().trim()); }
   if (!ds.length) { canhBaoMotLan_('HET_ANH_' + p.ma, p.ten + ': album ảnh hoa đang trống, anh thả ảnh vào nhé.'); return false; }
-  ds.sort(function (a, b) { return a.n - b.n || a.t - b.t; });
+  // Ưu tiên ảnh chưa dùng; giữa các album thì xoay vòng album ít bài nhất để page đa dạng
+  ds.sort(function (x, y) { return x.n - y.n || x.a - y.a || x.t - y.t; });
   if (ds[0].n > 0) canhBaoMotLan_('QUAYVONG_' + p.ma, p.ten + ': đã dùng hết ảnh mới, máy đang dùng lại ảnh cũ với góc viết khác. Anh thả thêm ảnh hoa nhé.');
-  var f0 = ds[0].f, blob = f0.getBlob();
+  var chon = ds[0], f0 = chon.f, blob = f0.getBlob();
   if (blob.getBytes().length > 15e6) throw new Error('Ảnh quá nặng: ' + f0.getName());
-  var goc = GOC_HOA[soBai % GOC_HOA.length];
+  var gocViet = GOC_HOA[soBai % GOC_HOA.length];
   var daViet = tieuDeDaCo_(p.ma).slice(-40);
   var anh = { inlineData: { mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) } };
   var o = jsonGemini_(p, [anh, { text:
-    'Đây là ảnh hoa THẬT của cửa hàng. Nhìn kỹ ảnh: loài hoa, màu sắc, kiểu bó/giỏ/lẵng, cảm giác. Chỉ tả đúng cái có trong ảnh, không bịa loài hoa không có.\n' +
-    'Viết 1 bài Facebook theo góc: ' + goc + '.\n' +
-    'Yêu cầu: câu mở đầu thật cuốn (gây tò mò/cảm xúc) để người lướt phải dừng lại; câu ngắn, xuống dòng nhiều, dễ đọc trên điện thoại; 2–4 emoji hợp hoa; ' +
+    'Đây là ảnh sản phẩm THẬT của cửa hàng, thuộc dòng: "' + chon.album + '" (tên album anh chủ đặt — bám đúng dòng sản phẩm này, ví dụ hoa sáp thì không nói chuyện tưới nước, hoa bánh kẹo thì nói về vị ngọt/bất ngờ khi nhận...). ' +
+    'Nhìn kỹ ảnh: loại hoa/vật liệu, màu sắc, kiểu bó/giỏ/hộp, cảm giác. Chỉ tả đúng cái có trong ảnh, không bịa.\n' +
+    'Viết 1 bài Facebook theo góc: ' + gocViet + '. Nếu góc này không hợp với dòng "' + chon.album + '" thì tự đổi sang góc tương tác khác hợp hơn.\n' +
+    'Yêu cầu: câu mở đầu thật cuốn (gây tò mò/cảm xúc) để người lướt phải dừng lại; câu ngắn, xuống dòng nhiều, dễ đọc trên điện thoại; 2–4 emoji hợp bài; ' +
     'giọng gần gũi, vui, chân thành, không sáo rỗng, không quảng cáo lộ liễu; kết bằng 1 câu hỏi/lời mời bình luận cụ thể. ' +
     'Văn bản thuần, không dùng * hay # để định dạng (trừ hashtag cuối). ' +
-    'Theo brief: khoảng 1/4 số bài mới có lời mời nhẹ nhàng nhắn tin page để đặt hoa; bài này ' + (soBai % 4 === 3 ? 'CÓ' : 'KHÔNG') + ' kèm lời mời đó. ' +
-    'Dòng cuối: #ChuyenHoaThaiBinh #HoaTuoiThaiBinh và 2–3 hashtag hợp bài. Tiêu đề không trùng: ' + JSON.stringify(daViet) + '\n' +
+    'Bài này ' + (soBai % 4 === 3 ? 'CÓ' : 'KHÔNG') + ' kèm 1 câu mời nhẹ nhàng nhắn tin page để đặt. ' +
+    'Dòng cuối: #ChuyenHoaThaiBinh #HoaTuoiThaiBinh và 2–3 hashtag hợp dòng "' + chon.album + '". Tiêu đề không trùng: ' + JSON.stringify(daViet) + '\n' +
     'Trả JSON: {"tieu_de": "<tiêu đề ngắn 3–7 chữ>", "bai_viet": "<bài hoàn chỉnh>"}' }]);
   if (!o.bai_viet) throw new Error('Gemini trả thiếu bài');
-  themDong_(p.ma, '', o.tieu_de, lamSach_(o.bai_viet), f0.getId(), '');
-  ghiLog_(p.ma, 'viết bài hoa: ' + o.tieu_de, 'OK');
+  themDong_(p.ma, '', o.tieu_de, lamSach_(o.bai_viet), f0.getId(), 'Album: ' + chon.album);
+  ghiLog_(p.ma, 'viết bài (' + chon.album + '): ' + o.tieu_de, 'OK');
   return true;
 }
 
