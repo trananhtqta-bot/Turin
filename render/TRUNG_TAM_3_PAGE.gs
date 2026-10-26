@@ -145,6 +145,29 @@ function nhipChay() {
     if (cfg_('TAM_DUNG').toUpperCase() === 'CO') return;
     var pages = cacPage_().filter(function (p) { return p.bat; });
     // 1) Đăng bài đúng giờ (ưu tiên trước)
+    dangTheoGio_(pages);
+    try { henGioDang_(pages); } catch (e) { ghiLog_('-', 'hẹn giờ đăng', 'LỖI: ' + e.message); }
+    var gioNay = Number(Utilities.formatDate(new Date(), TZ, 'H'));
+    // 2) Gửi ảnh đi ghép / thử lại job bị treo
+    guiGhep_(t0);
+    // 3) Chuẩn bị bài mới cho đủ tồn kho
+    pages.forEach(function (p) {
+      while (Date.now() - t0 < HET_GIO && (coLich_(p.ma) || demKho_(p.ma) < TON_KHO)) {
+        if (!sanXuat_(p)) break;
+      }
+    });
+    guiGhep_(t0);
+    try { damBaoWebhook_(); henGio22h_(); guiTelegram_(); } catch (e) { ghiLog_('-', 'Telegram', 'LỖI: ' + e.message); }
+    nhacDuyet_();
+    // 4) Tổng kết 21h
+    if (gioNay === 21) tongKet_();
+  } catch (e) {
+    ghiLog_('-', 'nhipChay', 'LỖI: ' + e.message); canhBao_('Máy gặp lỗi: ' + e.message);
+  } finally { lock.releaseLock(); }
+}
+
+/** Đăng các bài tới giờ (gọi từ nhịp 15 phút và từ lượt hẹn đúng giờ). */
+function dangTheoGio_(pages) {
     var gioNay = Number(Utilities.formatDate(new Date(), TZ, 'H'));
     var gios = cfg_('GIO_DANG').split(',').map(function (x) { return Number(x.trim()); });
     var khung = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd-HH');
@@ -167,22 +190,35 @@ function nhipChay() {
       if (r > 0) { dangDong_(r, p); pr.setProperty(key, khung); }
       else canhBao_(p.ten + ': đến giờ đăng nhưng KHÔNG có bài sẵn sàng.');
     });
-    // 2) Gửi ảnh đi ghép / thử lại job bị treo
-    guiGhep_(t0);
-    // 3) Chuẩn bị bài mới cho đủ tồn kho
-    pages.forEach(function (p) {
-      while (Date.now() - t0 < HET_GIO && (coLich_(p.ma) || demKho_(p.ma) < TON_KHO)) {
-        if (!sanXuat_(p)) break;
-      }
-    });
-    guiGhep_(t0);
-    try { damBaoWebhook_(); henGio22h_(); guiTelegram_(); } catch (e) { ghiLog_('-', 'Telegram', 'LỖI: ' + e.message); }
-    nhacDuyet_();
-    // 4) Tổng kết 21h
-    if (gioNay === 21) tongKet_();
-  } catch (e) {
-    ghiLog_('-', 'nhipChay', 'LỖI: ' + e.message); canhBao_('Máy gặp lỗi: ' + e.message);
-  } finally { lock.releaseLock(); }
+}
+
+/** Hẹn 1 lượt chạy đúng HH:00 cho khung đăng sắp tới (trong 16 phút), để bài lên đúng giờ thay vì chờ nhịp 15 phút. */
+function cacGioDang_(pages) {
+  var gios = {};
+  cfg_('GIO_DANG').split(',').forEach(function (x) { if (String(x).trim() !== '') gios[Number(x)] = 1; });
+  pages.forEach(function (p) {
+    if (coLich_(p.ma)) lichCua_(p.ma).forEach(function (x) { gios[x.gio] = 1; });
+    gioTuLam_(p.ma).forEach(function (g) { gios[g] = 1; });
+  });
+  return Object.keys(gios).map(Number);
+}
+function henGioDang_(pages) {
+  var now = Date.now(), gio = Math.floor(now / 3600e3) * 3600e3 + 3600e3;   // mốc giờ tròn kế tiếp
+  if (gio - now > 16 * 60000) return;
+  var h = Number(Utilities.formatDate(new Date(gio), TZ, 'H'));
+  if (cacGioDang_(pages).indexOf(h) < 0) return;
+  if (ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dangDungGio'; })) return;
+  ScriptApp.newTrigger('dangDungGio').timeBased().at(new Date(gio + 20000)).create();
+}
+function dangDungGio() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'dangDungGio') ScriptApp.deleteTrigger(t); });
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(4 * 60000)) return;   // nhịp 15 phút đang chạy thì nó tự đăng
+  try {
+    if (cfg_('TAM_DUNG').toUpperCase() === 'CO') return;
+    dangTheoGio_(cacPage_().filter(function (p) { return p.bat; }));
+  } catch (e) { ghiLog_('-', 'đăng đúng giờ', 'LỖI: ' + e.message); }
+  finally { lock.releaseLock(); }
 }
 
 function demKho_(ma) {
