@@ -6,31 +6,32 @@
 <title>Sổ thu chi</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
-<style>
-html,body{margin:0;height:100%;background:#f4f6f5;font-family:system-ui,Roboto,sans-serif;color:#1d2b24}
-iframe{border:0;width:100%;height:100%;display:block}
-#setup{max-width:420px;margin:0 auto;padding:40px 16px;display:flex;flex-direction:column;gap:12px}
+<style>body{font-family:system-ui,Roboto,sans-serif;margin:0;background:#f4f6f5;color:#1d2b24}.wrap{max-width:520px;margin:auto;padding:14px 14px 40px}h1{font-size:20px;margin:6px 0 12px}.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}.c{background:#fff;border-radius:12px;padding:10px 12px}.c b{display:block;font-size:18px;margin-top:2px}.thu{color:#11823b}.chi{color:#c62828}.sub{font-size:12px;color:#68766f}.box{background:#fff;border-radius:12px;padding:12px;margin-top:12px}.seg{display:flex;gap:6px;margin-bottom:8px}.seg button{flex:1;padding:10px;border-radius:10px;border:1px solid #ccd5d0;background:#fff;font-size:15px}.seg button.on.t{background:#11823b;color:#fff;border-color:#11823b}.seg button.on.c2{background:#c62828;color:#fff;border-color:#c62828}input{width:100%;box-sizing:border-box;padding:12px;font-size:18px;border:1px solid #ccd5d0;border-radius:10px;margin-bottom:8px}.q{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.q button{padding:7px 10px;border-radius:16px;border:1px solid #ccd5d0;background:#f7f9f8}.go{width:100%;padding:13px;font-size:16px;border:0;border-radius:10px;background:#1d6b4a;color:#fff}.row{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #eef1ef}.row .l{flex:1;min-width:0}.row .nd{font-size:12px;color:#68766f;word-break:break-word}.tag{font-size:11px;background:#eef3f0;border-radius:8px;padding:1px 6px;margin-left:4px}.alert{background:#fdecea;color:#1d2b24;border:1px solid #f3b4ad;border-radius:12px;padding:10px 12px;margin-top:12px}.alert b{color:#b3261e}.alert .ct{font-size:13px;margin:4px 0 8px}.alert button{padding:7px 12px;border-radius:8px;border:1px solid #ccd5d0;background:#fff;margin-right:6px;font-size:14px}.alert button.p{background:#1d6b4a;color:#fff;border-color:#1d6b4a}.off{opacity:.45}.tg{font-size:11px;border:1px solid #ccd5d0;background:#fff;border-radius:8px;padding:3px 6px;margin-top:4px}select{padding:6px;border-radius:8px;border:1px solid #ccd5d0;font-size:14px}#msg{font-size:13px;color:#68766f;min-height:16px;margin-top:6px}
+body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+#setup{position:fixed;inset:0;background:#f4f6f5;z-index:20;display:flex;flex-direction:column;gap:12px;padding:40px 16px;max-width:420px;margin:0 auto}
 #setup input{padding:12px;font-size:17px;border:1px solid #ccd5d0;border-radius:10px}
 #setup button{padding:13px;font-size:16px;border:0;border-radius:10px;background:#1d6b4a;color:#fff}
 [hidden]{display:none!important}
 </style></head><body>
-<div id="setup" hidden>
-  <h2 style="margin:0">Sổ thu chi</h2>
-  <p style="margin:0">Nhập mã sổ (chỉ cần nhập 1 lần trên máy này).</p>
-  <input id="k" autocomplete="off" placeholder="Mã sổ">
-  <button id="ok">Mở sổ</button>
-</div>
-<iframe id="f" hidden title="Sổ thu chi"></iframe>
+<div id="setup" hidden><h2 style="margin:0">Sổ thu chi</h2><p style="margin:0">Nhập mã sổ (chỉ cần nhập 1 lần trên máy này).</p>
+<input id="kin" autocomplete="off" placeholder="Mã sổ"><button onclick="var v=document.getElementById('kin').value.trim();if(v){setK(v);location.reload()}">Mở sổ</button></div>
+<div class="wrap"><h1>Sổ thu chi</h1><div class="cards"><div class="c">Thu tháng<b class="thu" id="thu">…</b></div><div class="c">Chi tháng<b class="chi" id="chi">…</b></div><div class="c">Hôm nay<b class="sub" id="ngay">…</b></div><div class="c">Còn lại tháng<b id="con">…</b></div></div><div id="al"></div><div class="box"><div class="seg"><button id="bT" class="t" onclick="setL('Thu')">+ Thu</button><button id="bC" class="c2 on" onclick="setL('Chi')">− Chi</button></div><select id="ng" style="width:100%;margin-bottom:8px;font-size:15px;padding:10px"></select><input id="tien" inputmode="numeric" placeholder="Số tiền (vd 30000)" oninput="fmt(this)"><div class="q"><button onclick="qa(10000)">+10k</button><button onclick="qa(20000)">+20k</button><button onclick="qa(50000)">+50k</button><button onclick="qa(100000)">+100k</button><button onclick="qa(500000)">+500k</button><button onclick="qa(0)">Xoá</button></div><input id="gc" placeholder="Ghi chú (ăn sáng, gửi xe...)" style="font-size:15px"><button class="go" id="go" onclick="luu()">Ghi tiền mặt</button><div id="msg"></div></div><div class="box"><div style="display:flex;justify-content:space-between;align-items:center"><b>Giao dịch</b><select id="th" onchange="load()"></select></div><div id="list"></div></div></div>
 <script>
 var EXEC='https://script.google.com/macros/s/AKfycby-bK8wOf9VJZDLkBG6fJ5XQtN2JLvXmlmF-Pty7GDEDI01qRdwGVjbR1ZLuqyD4ugP/exec';
-function get(){try{return localStorage.getItem('stc_k')}catch(e){return null}}
-function set(v){try{localStorage.setItem('stc_k',v)}catch(e){}}
-var h=location.hash.slice(1);
-if(h){set(h);history.replaceState(null,'',location.pathname)}
-function open_(k){var f=document.getElementById('f');f.src=EXEC+'?k='+encodeURIComponent(k);f.hidden=false;document.getElementById('setup').hidden=true}
-var k=get()||h;
-if(k)open_(k);else document.getElementById('setup').hidden=false;
-document.getElementById('ok').onclick=function(){var v=document.getElementById('k').value.trim();if(v){set(v);open_(v)}};
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+function getK(){try{return localStorage.getItem('stc_k')}catch(e){return null}}
+function setK(v){try{localStorage.setItem('stc_k',v)}catch(e){}}
+(function(){var h=decodeURIComponent(location.hash.slice(1));if(h){setK(h);history.replaceState(null,'',location.pathname)}window.__K=getK()||h||''})();
+function call(name,args,ok,bad){
+  fetch(EXEC+'?api='+name+'&args='+encodeURIComponent(JSON.stringify(args)))
+    .then(function(r){return r.json()})
+    .then(function(j){if(j.ok)ok&&ok(j.data);else{if(/sai mã/.test(j.error)){setK('');showSetup()}bad&&bad(new Error(j.error))}})
+    .catch(function(){bad&&bad(new Error('Không kết nối được. Kiểm tra mạng rồi thử lại.'))});
+}
+window.google={script:{run:new Proxy({},{get:function(_,k){
+  if(k==='withSuccessHandler')return function(ok){return{withFailureHandler:function(bad){return new Proxy({},{get:function(_,fn){return function(){call(fn,[].slice.call(arguments),ok,bad)}}})}}}}
+})}};
+function showSetup(){document.getElementById('setup').hidden=false}
 </script>
+<script>if(!window.__K){showSetup()}else{var K=window.__K,L="Chi";function f(n){return Number(n).toLocaleString("vi-VN")}function setL(x){L=x;bT.className="t"+(x=="Thu"?" on":"");bC.className="c2"+(x=="Chi"?" on":"")}function fmt(el){var n=el.value.replace(/\D/g,"");el.value=n?f(n):""}function qa(n){var c=Number(tien.value.replace(/\D/g,""))||0;tien.value=n?f(c+n):""}function al2(d){al.innerHTML=(d.alerts||[]).map(function(a){return "<div class=alert><b>⚠️ "+a.bank+" · "+a.loai+(a.lech?" "+(a.lech>0?"+":"−")+f(Math.abs(a.lech)):"")+"</b> <span class=sub>"+a.t+"</span><div class=ct>"+esc(a.ct)+"</div>"+(a.lech?"<button class=p onclick=\"rs('"+a.id+"',true)\">Ghi bổ sung</button>":"")+"<button onclick=\"rs('"+a.id+"',false)\">"+(a.lech?"Bỏ qua":"Đã xem")+"</button></div>"}).join("");if(d.banks&&!ng.options.length){ng.innerHTML=d.banks.map(function(b){return "<option>"+b+"</option>"}).join("");ng.onchange=function(){go.textContent=ng.value=="Tiền mặt"?"Ghi tiền mặt":"Ghi tay "+ng.value}}}function rs(id,g){google.script.run.withSuccessHandler(show).withFailureHandler(err).apiResolve(K,id,g)}function show(d){al2(d);thu.textContent=f(d.thu);chi.textContent=f(d.chi);con.textContent=f(d.thu-d.chi);ngay.innerHTML="<span class=thu>+"+f(d.thuNgay)+"</span> / <span class=chi>−"+f(d.chiNgay)+"</span>";list.innerHTML=d.list.map(function(r){return "<div class=\"row"+(r.tinh?"":" off")+"\"><div class=l><b>"+r.nguon+"</b>"+(r.nhan?"<span class=tag>"+r.nhan+"</span>":"")+"<div class=nd>"+r.t+(r.ten?" · "+r.ten:"")+(r.nd?" · "+esc(r.nd):"")+"</div></div><div style=\"text-align:right\"><b class="+(r.loai=="Thu"?"thu":"chi")+">"+(r.loai=="Thu"?"+":"−")+f(r.tien)+"</b><br><button class=tg onclick=\"tg('"+r.id+"',"+(!r.tinh)+")\">"+(r.tinh?"Bỏ tính":"Tính lại")+"</button></div></div>"}).join("")||"<div class=sub>Chưa có giao dịch</div>"}function esc(s){return String(s).replace(/[<>&]/g,"")}function err(e){msg.textContent="Lỗi: "+e.message}function load(){google.script.run.withSuccessHandler(show).withFailureHandler(err).apiData(K,th.value)}function luu(){msg.textContent="Đang ghi…";google.script.run.withSuccessHandler(function(d){tien.value="";gc.value="";msg.textContent="Đã ghi ✓";th.value=d.thang;show(d)}).withFailureHandler(err).apiAddCash(K,L,tien.value,gc.value,ng.value)}function tg(id,v){google.script.run.withSuccessHandler(function(d){load()}).withFailureHandler(err).apiSetTinh(K,id,v)}(function(){var d=new Date();for(var i=0;i<12;i++){var x=new Date(d.getFullYear(),d.getMonth()-i,1);var v=x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0");th.innerHTML+="<option value="+v+">Tháng "+(x.getMonth()+1)+"/"+x.getFullYear()+"</option>"}load()})();}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});</script>
 </body></html>
