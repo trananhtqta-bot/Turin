@@ -154,11 +154,12 @@ function nhipChay() {
       if (coLich_(p.ma)) {   // page chạy theo lịch (Hoa): chỉ đăng bài đã DUYỆT của đúng khung giờ này
         var kl = khungLich_(new Date(), TZ, gioNay);
         var co = lichCua_(p.ma).some(function (x) { return x.thu === thuCua_(new Date()) && x.gio === gioNay; });
-        if (!co) return;
+        var tuLam = gioTuLam_(p.ma).indexOf(gioNay) >= 0;
+        if (!co && !tuLam) return;
         pr.setProperty(key, khung);
         var r2 = dongTheoLich_(p.ma, kl);
         if (r2 > 0) dangDong_(r2, p);
-        else canhBao_(p.ten + ': đến khung ' + kl + ' nhưng bài của khung này CHƯA được duyệt nên không đăng.');
+        else if (co) canhBao_(p.ten + ': đến khung ' + kl + ' nhưng bài của khung này CHƯA được duyệt nên không đăng.', p.ma);
         return;
       }
       if (gios.indexOf(gioNay) < 0) return;
@@ -326,6 +327,10 @@ function gioGuiTuan_(ma) { var g = Number(cfg_('TG_GIO_GUI_' + String(ma).toUppe
 function dangGiuGui_(ma) { var n = new Date(), h = Number(Utilities.formatDate(n, TZ, 'H')); return thuCua_(n) === 7 && h >= 18 && h < gioGuiTuan_(ma || 'HOA'); }
 function gioLichCaiDat_(ma) {   // CaiDat LICH_GIO_<MÃ> = "7,14,20" → page đăng theo lịch cố định mọi ngày (Bè Gỗ)
   return String(cfg_('LICH_GIO_' + String(ma).toUpperCase()) || '').split(',').map(function (x) { return String(x).trim(); })
+    .filter(function (x) { return x !== '' && Number(x) >= 0 && Number(x) <= 23; }).map(Number);
+}
+function gioTuLam_(ma) {   // CaiDat LICH_TU_LAM_<MÃ>: giờ đăng bài anh tự làm gửi qua bot
+  return String(cfg_('LICH_TU_LAM_' + String(ma).toUpperCase()) || '').split(',').map(function (x) { return String(x).trim(); })
     .filter(function (x) { return x !== '' && Number(x) >= 0 && Number(x) <= 23; }).map(Number);
 }
 function coLich_(ma) {
@@ -879,9 +884,10 @@ function tongKet_() {
   MailApp.sendEmail(cfg_('EMAIL_BAO'), '🪵 Tổng kết đăng bài ' + hom, txt + '\n\nBảng: ' + SpreadsheetApp.getActive().getUrl());
   pr.setProperty('TONGKET', hom);
 }
-function canhBao_(msg) {
+function canhBao_(msg, ma) {
   try { MailApp.sendEmail(cfg_('EMAIL_BAO'), '⚠️ Trung tâm 3 page: cần anh xem', msg + '\n\nBảng: ' + SpreadsheetApp.getActive().getUrl()); } catch (e) {}
-  try { if (cfg_('TG_TOKEN') && cfg_('TG_CHAT_ID')) tg_('sendMessage', { chat_id: cfg_('TG_CHAT_ID'), text: '⚠️ ' + msg }); } catch (e) {}
+  var sf = botCua_(ma); if (sf && !cfg_('TG_CHAT_ID' + sf)) sf = '';
+  try { if (cfg_('TG_TOKEN' + sf) && cfg_('TG_CHAT_ID' + sf)) tg_('sendMessage', { chat_id: cfg_('TG_CHAT_ID' + sf), text: '⚠️ ' + msg }, false, sf); } catch (e) {}
 }
 function canhBaoMotLan_(khoa, msg) {
   var c = CacheService.getScriptCache(); if (c.get(khoa)) return; c.put(khoa, '1', 6 * 3600); canhBao_(msg);
@@ -944,10 +950,12 @@ function chanDoanGemini() {
 
 
 /* ============================ TELEGRAM: DUYỆT BÀI TRÊN ĐIỆN THOẠI ============================ */
-function tg_(method, payload, multipart) {
+/** Bot riêng theo page: page có ô TG_TOKEN_<MÃ> thì dùng bot đó (hậu tố "_<MÃ>"), không thì dùng bot chung. */
+function botCua_(ma) { var sf = '_' + String(ma || '').toUpperCase(); return (ma && cfg_('TG_TOKEN' + sf)) ? sf : ''; }
+function tg_(method, payload, multipart, sf) {
   var o = { method: 'post', muteHttpExceptions: true, payload: multipart ? payload : JSON.stringify(payload) };
   if (!multipart) o.contentType = 'application/json';
-  var r = UrlFetchApp.fetch('https://api.telegram.org/bot' + cfg_('TG_TOKEN') + '/' + method, o);
+  var r = UrlFetchApp.fetch('https://api.telegram.org/bot' + cfg_('TG_TOKEN' + (sf || '')) + '/' + method, o);
   var j = JSON.parse(r.getContentText());
   if (!j.ok) throw new Error('Telegram ' + method + ': ' + j.description);
   return j.result;
@@ -958,15 +966,21 @@ function ketNoiTelegram() {
   damBaoWebhook_();
   bao_('Đã nối Telegram. Anh mở bot trên Telegram, bấm Bắt đầu (/start) là xong.');
 }
+function cacBot_() {   // ['', '_BEGO', ...] — bot chung + các bot riêng đã có mã
+  var out = ['']; cacPage_().forEach(function (p) { var sf = botCua_(p.ma); if (sf && out.indexOf(sf) < 0) out.push(sf); });
+  return out;
+}
 function damBaoWebhook_() {
-  var tk = cfg_('TG_TOKEN'); if (!tk) return;
-  if (!cfg_('TG_SECRET')) datCfg_('TG_SECRET', Utilities.getUuid().replace(/-/g, ''));
-  var url = (cfg_('WEBAPP_URL') || ScriptApp.getService().getUrl()) + '?tg=' + cfg_('TG_SECRET');
-  var pr = PropertiesService.getScriptProperties(), dau = tk.substring(0, 12) + '|' + url;
-  if (pr.getProperty('TG_HOOK') === dau) return;
-  tg_('setWebhook', { url: url, allowed_updates: ['message', 'callback_query'] });
-  pr.setProperty('TG_HOOK', dau);
-  ghiLog_('-', 'Telegram', 'đã đặt webhook');
+  cacBot_().forEach(function (sf) {
+    var tk = cfg_('TG_TOKEN' + sf); if (!tk) return;
+    if (!cfg_('TG_SECRET' + sf)) datCfg_('TG_SECRET' + sf, Utilities.getUuid().replace(/-/g, ''));
+    var url = (cfg_('WEBAPP_URL') || ScriptApp.getService().getUrl()) + '?tg=' + cfg_('TG_SECRET' + sf);
+    var pr = PropertiesService.getScriptProperties(), dau = tk.substring(0, 12) + '|' + url;
+    if (pr.getProperty('TG_HOOK' + sf) === dau) return;
+    tg_('setWebhook', { url: url, allowed_updates: ['message', 'callback_query'] }, false, sf);
+    pr.setProperty('TG_HOOK' + sf, dau);
+    ghiLog_('-', 'Telegram', 'đã đặt webhook' + sf);
+  });
 }
 function nutDuyet_() {
   return { inline_keyboard: [[{ text: '✅ Duyệt', callback_data: 'D' }, { text: '🔄 Viết lại', callback_data: 'L' }],
@@ -974,55 +988,71 @@ function nutDuyet_() {
 }
 /** Gửi các bài Hoa đang Chờ duyệt (chưa gửi) về Telegram. Tối CN 18h–22h thì giữ lại, 22h gửi cả tuần. */
 function guiTelegram_() {
-  var chat = cfg_('TG_CHAT_ID'); if (!cfg_('TG_TOKEN') || !chat) return;
-  var s = bangBai_(), v = s.getDataRange().getValues(), n = 0, t0 = Date.now();
+  if (!cfg_('TG_TOKEN')) return;
+  var s = bangBai_(), v = s.getDataRange().getValues(), n = 0, t0 = Date.now(), demBot = {};
   var ds = [], tenPage = {}; cacPage_().forEach(function (p) { tenPage[p.ma] = p.ten; });
   for (var i = 1; i < v.length; i++)
     if (v[i][C['Trạng thái'] - 1] === 'Chờ duyệt' && !v[i][C['TG'] - 1] && v[i][C['Lịch đăng'] - 1] && v[i][C['Ảnh gốc'] - 1] && !dangGiuGui_(v[i][C['Page'] - 1])) ds.push(i);
   ds.forEach(function (i) {
     if (Date.now() - t0 > 4 * 60 * 1000) return;
     var row = i + 1, kl = String(v[i][C['Lịch đăng'] - 1]), maP = String(v[i][C['Page'] - 1]);
+    var sf = botCua_(maP), chat = cfg_('TG_CHAT_ID' + sf);
+    if (!chat) return;   // bot riêng chưa bấm Bắt đầu
     var laHoa = maP.toUpperCase() === 'HOA';
     var loai = laHoa ? String(v[i][C['Loại'] - 1]) : (tenPage[maP] || maP) + (v[i][C['Số'] - 1] ? ' · Bài ' + v[i][C['Số'] - 1] : '');
     var cd = laHoa ? String(v[i][C['Chữ trong ảnh'] - 1]).replace(/^.*Chủ đề:\s*/, '') : String(v[i][C['Tiêu đề'] - 1]);
     try {
-      tg_('sendPhoto', { chat_id: chat, photo: anhNho_(DriveApp.getFileById(v[i][C['Ảnh gốc'] - 1])), caption: '📅 ' + kl + ' · ' + loai }, true);
+      tg_('sendPhoto', { chat_id: chat, photo: anhNho_(DriveApp.getFileById(v[i][C['Ảnh gốc'] - 1])), caption: '📅 ' + kl + ' · ' + loai }, true, sf);
     } catch (e) { ghiLog_(maP, 'TG gửi ảnh', 'LỖI: ' + e.message); }
     var m = tg_('sendMessage', { chat_id: chat, text: ('📅 ' + kl + ' · ' + loai + '\n💡 ' + cd + '\n━━━━━━━━━━\n' + v[i][C['Nội dung'] - 1]).substring(0, 4000),
-      reply_markup: nutDuyet_() });
-    s.getRange(row, C['TG']).setValue(m.message_id); n++;
+      reply_markup: nutDuyet_() }, false, sf);
+    s.getRange(row, C['TG']).setValue((sf ? sf + ':' : '') + m.message_id); n++; demBot[sf] = (demBot[sf] || 0) + 1;
   });
-  if (n >= 3) tg_('sendMessage', { chat_id: chat, text: '📬 Em vừa gửi ' + n + ' bài. Anh duyệt từng bài ở trên, hoặc bấm nút dưới để duyệt hết các bài đang chờ.',
-    reply_markup: { inline_keyboard: [[{ text: '✅ Duyệt tất cả bài đang chờ', callback_data: 'ALL' }]] } });
+  Object.keys(demBot).forEach(function (sf) {
+    if (demBot[sf] >= 3) tg_('sendMessage', { chat_id: cfg_('TG_CHAT_ID' + sf), text: '📬 Em vừa gửi ' + demBot[sf] + ' bài. Anh duyệt từng bài ở trên, hoặc bấm nút dưới để duyệt hết các bài đang chờ.',
+      reply_markup: { inline_keyboard: [[{ text: '✅ Duyệt tất cả bài đang chờ', callback_data: 'ALL' }]] } }, false, sf);
+  });
   if (n) ghiLog_('-', 'Telegram', 'đã gửi ' + n + ' bài');
 }
 function nhanTelegram_(e) {
   var ok = ContentService.createTextOutput('ok');
   try {
-    if (e.parameter.tg !== cfg_('TG_SECRET')) return ok;
+    var sf = null;
+    cacBot_().forEach(function (x) { if (sf === null && cfg_('TG_SECRET' + x) && e.parameter.tg === cfg_('TG_SECRET' + x)) sf = x; });
+    if (sf === null) return ok;
     var u = JSON.parse(e.postData.contents), c = CacheService.getScriptCache();
-    if (c.get('tgu_' + u.update_id)) return ok; c.put('tgu_' + u.update_id, '1', 21600);
-    var chat = cfg_('TG_CHAT_ID');
+    if (c.get('tgu' + sf + '_' + u.update_id)) return ok; c.put('tgu' + sf + '_' + u.update_id, '1', 21600);
+    var chat = cfg_('TG_CHAT_ID' + sf), tienTo = sf ? sf + ':' : '';
+    var maBot = sf ? sf.substring(1) : 'HOA', tenBot = sf ? ((cacPage_().filter(function (p) { return p.ma === maBot; })[0] || {}).ten || maBot) : 'page Hoa';
+    var cuaBot = function (tg) { tg = String(tg || ''); return sf ? tg.indexOf(tienTo) === 0 : (tg !== '' && tg.indexOf(':') < 0); };
+    var soTin = function (tg) { return Number(String(tg).split(':').pop()); };
     if (u.message) {
       var id = String(u.message.chat.id);
-      if (!chat) { datCfg_('TG_CHAT_ID', id); chat = id;
-        tg_('sendMessage', { chat_id: id, text: '🌸 Đã kết nối! Từ giờ bài page Hoa sẽ gửi về đây để anh duyệt. Bài cả tuần gửi lúc 22h tối Chủ nhật; bài viết lại thì gửi ngay.' });
+      if (!chat) { datCfg_('TG_CHAT_ID' + sf, id); chat = id;
+        tg_('sendMessage', { chat_id: id, text: sf ? ('🪵 Đã kết nối bot ' + tenBot + '!\n• Bài cũ cả tuần gửi về đây lúc 21h tối Chủ nhật để anh duyệt.\n• Bài anh tự làm: gửi ẢNH trước, rồi gửi NỘI DUNG ngay sau. Em tự xếp vào khung ' + gioTuLam_(maBot).join(',') + 'h còn trống, không cần duyệt.')
+          : '🌸 Đã kết nối! Từ giờ bài page Hoa sẽ gửi về đây để anh duyệt. Bài cả tuần gửi lúc 22h tối Chủ nhật; bài viết lại thì gửi ngay.' }, false, sf);
         guiTelegram_(); return ok; }
-      if (id === chat) tg_('sendMessage', { chat_id: id, text: 'Em là bot duyệt bài page Hoa. Anh bấm nút dưới mỗi bài để Duyệt / Viết lại / Không đăng.' });
+      if (id !== chat) return ok;
+      if (sf && gioTuLam_(maBot).length && nhanBaiTuLam_(u.message, sf, maBot)) return ok;
+      tg_('sendMessage', { chat_id: id, text: sf ? ('Em là bot ' + tenBot + '. Muốn đăng bài tự làm: gửi ẢNH trước, rồi gửi NỘI DUNG bài ngay sau.')
+        : 'Em là bot duyệt bài page Hoa. Anh bấm nút dưới mỗi bài để Duyệt / Viết lại / Không đăng.' }, false, sf);
       return ok;
     }
     var q = u.callback_query; if (!q || String(q.message.chat.id) !== chat) return ok;
     var s = bangBai_(), v = s.getDataRange().getValues(), bao = '';
     if (q.data === 'ALL') {
       var n = 0;
-      for (var i = 1; i < v.length; i++) if (v[i][C['Trạng thái'] - 1] === 'Chờ duyệt' && v[i][C['TG'] - 1]) {
+      for (var i = 1; i < v.length; i++) if (v[i][C['Trạng thái'] - 1] === 'Chờ duyệt' && cuaBot(v[i][C['TG'] - 1])) {
         s.getRange(i + 1, C['Trạng thái']).setValue('Duyệt'); n++;
-        try { tg_('editMessageReplyMarkup', { chat_id: chat, message_id: Number(v[i][C['TG'] - 1]), reply_markup: { inline_keyboard: [[{ text: '✅ Đã duyệt', callback_data: 'X' }]] } }); } catch (x) {}
+        try { tg_('editMessageReplyMarkup', { chat_id: chat, message_id: soTin(v[i][C['TG'] - 1]), reply_markup: { inline_keyboard: [[{ text: '✅ Đã duyệt', callback_data: 'X' }]] } }, false, sf); } catch (x) {}
       }
       bao = 'Đã duyệt ' + n + ' bài ✅';
+    } else if (q.data === 'H') {
+      bao = huyBaiTuLam_(sf, q.message.message_id);
+      try { tg_('editMessageReplyMarkup', { chat_id: chat, message_id: q.message.message_id, reply_markup: { inline_keyboard: [[{ text: '❌ Đã hủy', callback_data: 'X' }]] } }, false, sf); } catch (x) {}
     } else if (q.data !== 'X') {
       var row = -1;
-      for (var j = 1; j < v.length; j++) if (String(v[j][C['TG'] - 1]) === String(q.message.message_id)) { row = j + 1; break; }
+      for (var j = 1; j < v.length; j++) if (String(v[j][C['TG'] - 1]) === tienTo + q.message.message_id) { row = j + 1; break; }
       if (row < 0) bao = 'Không thấy bài này trong bảng';
       else {
         var tt = s.getRange(row, C['Trạng thái']).getValue();
@@ -1031,14 +1061,94 @@ function nhanTelegram_(e) {
           var moi = { D: ['Duyệt', '✅ Đã duyệt', 'Đã duyệt ✅'], L: ['Bỏ', '🔄 Đang viết lại bài khác…', 'Máy sẽ viết bài khác cho khung này (~15 phút) 🔄'],
             K: ['Không đăng', '⛔ Không đăng khung này', 'Khung này sẽ không đăng ⛔'] }[q.data];
           s.getRange(row, C['Trạng thái']).setValue(moi[0]);
-          tg_('editMessageReplyMarkup', { chat_id: chat, message_id: q.message.message_id, reply_markup: { inline_keyboard: [[{ text: moi[1], callback_data: 'X' }]] } });
+          tg_('editMessageReplyMarkup', { chat_id: chat, message_id: q.message.message_id, reply_markup: { inline_keyboard: [[{ text: moi[1], callback_data: 'X' }]] } }, false, sf);
           bao = moi[2];
         }
       }
     }
-    tg_('answerCallbackQuery', { callback_query_id: q.id, text: bao || '' });
+    tg_('answerCallbackQuery', { callback_query_id: q.id, text: bao || '' }, false, sf);
   } catch (err) { ghiLog_('-', 'Telegram nhận', 'LỖI: ' + err.message); }
   return ok;
+}
+
+/* ---------- Bài anh tự làm gửi qua bot riêng: ẢNH trước, NỘI DUNG sau → xếp khung giờ tự làm, không cần duyệt ---------- */
+function luuAnhTelegram_(msg, sf, ma) {
+  var fid = msg.photo ? msg.photo[msg.photo.length - 1].file_id : msg.document.file_id;
+  var path = tg_('getFile', { file_id: fid }, false, sf).file_path;
+  var r = UrlFetchApp.fetch('https://api.telegram.org/file/bot' + cfg_('TG_TOKEN' + sf) + '/' + path, { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('không tải được ảnh từ Telegram (' + r.getResponseCode() + ')');
+  var ext = (path.match(/\.\w+$/) || ['.jpg'])[0];
+  return thuMucCon_(ma + '_bai_tu_lam').createFile(r.getBlob().setName(ma + '_tulam_' + Utilities.formatDate(new Date(), TZ, 'yyyyMMdd_HHmmss') + ext)).getId();
+}
+function khungTuLamTiep_(ma, boQua) {   // khung giờ tự làm còn trống sớm nhất (từ ~10 phút tới trở đi)
+  var gios = gioTuLam_(ma).sort(function (a, b) { return a - b; }), dung = {}, v = bangBai_().getDataRange().getValues();
+  for (var i = 1; i < v.length; i++) if (v[i][C['Page'] - 1] === ma && v[i][C['Loại'] - 1] === 'Tự làm' && v[i][C['Trạng thái'] - 1] === 'Duyệt' && i + 1 !== boQua)
+    dung[String(v[i][C['Lịch đăng'] - 1])] = 1;
+  var now = Date.now();
+  for (var d = 0; d < 400; d++) {
+    var ngay = new Date(now + d * 864e5), ymd = Utilities.formatDate(ngay, TZ, 'yyyy-MM-dd');
+    for (var j = 0; j < gios.length; j++) {
+      var luc = new Date(ymd + 'T' + (gios[j] < 10 ? '0' : '') + gios[j] + ':00:00+07:00').getTime();
+      if (luc < now + 10 * 60000) continue;
+      var kl = khungLich_(ngay, TZ, gios[j]); if (!dung[kl]) return kl;
+    }
+  }
+  return '';
+}
+function nhanBaiTuLam_(msg, sf, ma) {
+  var pr = PropertiesService.getScriptProperties(), keyAnh = 'TULAM_ANH' + sf, chat = msg.chat.id;
+  var laAnh = msg.photo || (msg.document && /^image\//.test(msg.document.mime_type || ''));
+  var chu = String(msg.text || msg.caption || '').trim();
+  if (laAnh) {
+    if (pr.getProperty(keyAnh)) tg_('sendMessage', { chat_id: chat, text: '⚠️ Ảnh trước chưa có nội dung nên em bỏ ảnh đó, dùng ảnh mới này.' }, false, sf);
+    pr.setProperty(keyAnh, luuAnhTelegram_(msg, sf, ma));
+    if (!chu) { tg_('sendMessage', { chat_id: chat, text: '📷 Đã nhận ảnh. Anh gửi NỘI DUNG bài cho ảnh này nhé.' }, false, sf); return true; }
+  }
+  if (!chu || chu.charAt(0) === '/') return false;
+  var anhId = pr.getProperty(keyAnh), s = bangBai_();
+  if (!anhId) {   // tin chữ đến liền sau 1 bài vừa xếp (Telegram tự cắt bài dài) → nối vào bài đó
+    var cuoi = pr.getProperty('TULAM_CUOI' + sf);
+    if (cuoi) { var cc = cuoi.split('|'), rr = Number(cc[0]);
+      if (Date.now() - Number(cc[1]) < 120000 && s.getRange(rr, C['Page']).getValue() === ma) {
+        s.getRange(rr, C['Nội dung']).setValue(String(s.getRange(rr, C['Nội dung']).getValue()) + '\n' + chu);
+        pr.setProperty('TULAM_CUOI' + sf, rr + '|' + Date.now());
+        tg_('sendMessage', { chat_id: chat, text: '➕ Đã nối phần chữ này vào bài vừa xếp lịch.' }, false, sf); return true; } }
+    tg_('sendMessage', { chat_id: chat, text: 'Anh gửi ẢNH trước, rồi gửi NỘI DUNG bài ngay sau nhé.' }, false, sf); return true;
+  }
+  var kl = khungTuLamTiep_(ma);
+  var tieuDe = chu.split('\n').filter(function (x) { return x.trim(); })[0].substring(0, 90);
+  themDong_(ma, '', tieuDe, chu, anhId, '');
+  var row = s.getLastRow();
+  s.getRange(row, C['Trạng thái']).setValue('Duyệt');
+  s.getRange(row, C['Lịch đăng']).setNumberFormat('@').setValue(kl);
+  s.getRange(row, C['Loại']).setValue('Tự làm');
+  pr.deleteProperty(keyAnh); pr.setProperty('TULAM_CUOI' + sf, row + '|' + Date.now());
+  var m = tg_('sendMessage', { chat_id: chat, text: '✅ Đã xếp lịch: ' + kl + '\n📝 ' + tieuDe,
+    reply_markup: { inline_keyboard: [[{ text: '❌ Hủy bài này', callback_data: 'H' }]] } }, false, sf);
+  s.getRange(row, C['TG']).setValue(sf + ':' + m.message_id);
+  ghiLog_(ma, 'nhận bài tự làm → ' + kl, 'OK');
+  return true;
+}
+function huyBaiTuLam_(sf, msgId) {
+  var s = bangBai_(), v = s.getDataRange().getValues(), row = -1, ma = sf.substring(1);
+  for (var i = 1; i < v.length; i++) if (String(v[i][C['TG'] - 1]) === sf + ':' + msgId) { row = i + 1; break; }
+  if (row < 0) return 'Không thấy bài này';
+  if (s.getRange(row, C['Trạng thái']).getValue() === 'Đã đăng') return 'Bài này đã đăng rồi';
+  s.getRange(row, C['Trạng thái']).setValue('Hủy');
+  // các bài tự làm sau đó dồn lên khung sớm hơn
+  v = s.getDataRange().getValues();
+  var ds = [];
+  for (var j = 1; j < v.length; j++) if (v[j][C['Page'] - 1] === ma && v[j][C['Loại'] - 1] === 'Tự làm' && v[j][C['Trạng thái'] - 1] === 'Duyệt') ds.push(j + 1);
+  ds.sort(function (a, b) { return a - b; });
+  ds.forEach(function (r) { s.getRange(r, C['Trạng thái']).setValue('Dời'); });
+  var doi = [];
+  ds.forEach(function (r) {
+    var cu = String(s.getRange(r, C['Lịch đăng']).getValue()), moi = khungTuLamTiep_(ma);
+    s.getRange(r, C['Lịch đăng']).setNumberFormat('@').setValue(moi); s.getRange(r, C['Trạng thái']).setValue('Duyệt');
+    if (cu !== moi) doi.push('• ' + String(s.getRange(r, C['Tiêu đề']).getValue()).substring(0, 40) + ' → ' + moi);
+  });
+  if (doi.length) try { tg_('sendMessage', { chat_id: cfg_('TG_CHAT_ID' + sf), text: '📅 Lịch mới sau khi hủy:\n' + doi.join('\n') }, false, sf); } catch (e) {}
+  return 'Đã hủy bài ❌';
 }
 
 /** Tối Chủ nhật: hẹn 1 lần chạy đúng 22h00 để gửi bài cả tuần (nhịp 15 phút có thể lệch tới 22h14). */
