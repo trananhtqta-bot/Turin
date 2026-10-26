@@ -23,9 +23,10 @@ function setK(v){try{localStorage.setItem('stc_k',v)}catch(e){}}
 (function(){var h=decodeURIComponent(location.hash.slice(1));if(h){setK(h);history.replaceState(null,'',location.pathname)}window.__K=getK()||h||''})();
 function call(name,args,ok,bad){
   fetch(EXEC+'?api='+name+'&args='+encodeURIComponent(JSON.stringify(args)))
-    .then(function(r){return r.json()})
+    .then(function(r){return r.text()})
+    .then(function(t){var j;try{j=JSON.parse(t)}catch(e){throw new Error('OLD')}return j})
     .then(function(j){if(j.ok)ok&&ok(j.data);else{if(/sai mã/.test(j.error)){setK('');showSetup()}bad&&bad(new Error(j.error))}})
-    .catch(function(){bad&&bad(new Error('Không kết nối được. Kiểm tra mạng rồi thử lại.'))});
+    .catch(function(e){bad&&bad(new Error(e&&e.message==='OLD'?'Google đang chạy code cũ. Vào Apps Script → Triển khai → Quản lý các lần triển khai → ✏️ → Phiên bản mới → Triển khai.':'Không kết nối được. Kiểm tra mạng rồi thử lại.'))});
 }
 window.google={script:{run:new Proxy({},{get:function(_,k){
   if(k==='withSuccessHandler')return function(ok){return{withFailureHandler:function(bad){return new Proxy({},{get:function(_,fn){return function(){call(fn,[].slice.call(arguments),ok,bad)}}})}}}}
