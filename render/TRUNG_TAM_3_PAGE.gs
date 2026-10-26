@@ -710,10 +710,20 @@ function dangYT_(p, tieuDe, moTa, blob) {
   return 'https://youtube.com/shorts/' + j.id;
 }
 
+/** TikTok chỉ nhận ảnh ≤ 2.073.600 điểm ảnh → tạo bản thu nhỏ (cạnh dài ~1080px) lưu trong thư mục xuất bản, dùng lại nếu đã có. */
+function anhTikTok_(anhId) {
+  var thu = thuMucCon_('HOA_anh_tiktok'), ten = 'tt_' + anhId + '.jpg', it = thu.getFilesByName(ten);
+  if (it.hasNext()) { var f0 = it.next(); congKhai_(f0); return f0.getId(); }
+  var r = UrlFetchApp.fetch('https://drive.google.com/thumbnail?sz=s1080&id=' + anhId, {
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200 || !/image/.test(r.getHeaders()['Content-Type'] || '')) throw new Error('không thu nhỏ được ảnh cho TikTok (mã ' + r.getResponseCode() + ')');
+  var f = thu.createFile(r.getBlob().setName(ten)); congKhai_(f);
+  return f.getId();
+}
 function dangTikTok_(p, tieuDe, noiDung, videoId, anhId) {
   var q = 'mutation($i: CreatePostInput!){ createPost(input:$i){ __typename ... on PostActionSuccess { post { id status } } ... on MutationError { message } } }';
   var bien = { i: { channelId: p.buffer, text: noiDung.substring(0, 2100), mode: 'shareNow', schedulingType: (cfg_('TIKTOK_BAO') || 'HOA').toUpperCase().split(',').map(function (x) { return x.trim(); }).indexOf(String(p.ma).toUpperCase()) >= 0 ? 'notification' : 'automatic',   // notification = Buffer báo điện thoại để anh tự chọn nhạc rồi đăng
-    assets: videoId ? [{ video: { url: linkTai_(videoId) } }] : [{ image: { url: (function () { congKhai_(DriveApp.getFileById(anhId)); return linkTai_(anhId); })() } }],
+    assets: videoId ? [{ video: { url: linkTai_(videoId) } }] : [{ image: { url: linkTai_(anhTikTok_(anhId)) } }],
     metadata: { tiktok: { title: tieuDe.substring(0, 90), isAiGenerated: p.nguon === 'TU_TAO' } } } };   // không có video (page Hoa) → đăng TikTok chế độ ảnh
   var res = UrlFetchApp.fetch(cfg_('BUFFER_API') || 'https://api.buffer.com', { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     headers: { Authorization: 'Bearer ' + cfg_('BUFFER_KEY') }, payload: JSON.stringify({ query: q, variables: bien }) });
@@ -737,7 +747,7 @@ function thuLaiLoi() {
   for (var i = 1; i < v.length; i++) {
     if (v[i][C['Trạng thái'] - 1] !== 'Lỗi') continue;
     var p = pages[v[i][C['Page'] - 1]]; if (!p) continue;
-    if (!v[i][C['Video'] - 1]) { s.getRange(i + 1, C['Trạng thái']).setValue('Chờ ghép'); s.getRange(i + 1, C['Lần ghép']).setValue(0); }
+    if (!v[i][C['Video'] - 1] && !khongVideo_(p.ma)) { s.getRange(i + 1, C['Trạng thái']).setValue('Chờ ghép'); s.getRange(i + 1, C['Lần ghép']).setValue(0); }
     else dangDong_(i + 1, p);
     n++;
   }
