@@ -175,7 +175,7 @@ function nhipChay() {
       }
     });
     guiGhep_(t0);
-    try { damBaoWebhook_(); guiTelegram_(); } catch (e) { ghiLog_('-', 'Telegram', 'LỖI: ' + e.message); }
+    try { damBaoWebhook_(); henGio22h_(); guiTelegram_(); } catch (e) { ghiLog_('-', 'Telegram', 'LỖI: ' + e.message); }
     nhacDuyet_();
     // 4) Tổng kết 21h
     if (gioNay === 21) tongKet_();
@@ -982,4 +982,19 @@ function nhanTelegram_(e) {
     tg_('answerCallbackQuery', { callback_query_id: q.id, text: bao || '' });
   } catch (err) { ghiLog_('-', 'Telegram nhận', 'LỖI: ' + err.message); }
   return ok;
+}
+
+/** Tối Chủ nhật: hẹn 1 lần chạy đúng 22h00 để gửi bài cả tuần (nhịp 15 phút có thể lệch tới 22h14). */
+function henGio22h_() {
+  var now = new Date(), h = Number(Utilities.formatDate(now, TZ, 'H'));
+  if (thuCua_(now) !== 7 || h < 20 || h >= 22) return;
+  if (ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'guiTuanTelegram'; })) return;
+  var luc = new Date(Utilities.formatDate(now, TZ, 'yyyy-MM-dd') + 'T22:00:20+07:00');
+  ScriptApp.newTrigger('guiTuanTelegram').timeBased().at(luc).create();
+  ghiLog_('HOA', 'Telegram', 'hẹn gửi bài tuần lúc 22h00');
+}
+function guiTuanTelegram() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'guiTuanTelegram') ScriptApp.deleteTrigger(t); });
+  var lock = LockService.getScriptLock(); lock.waitLock(60000);
+  try { guiTelegram_(); } catch (e) { ghiLog_('-', 'Telegram', 'LỖI: ' + e.message); } finally { lock.releaseLock(); }
 }
