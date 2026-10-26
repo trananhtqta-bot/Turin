@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d6b4a">
+<title>Sổ thu chi</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+html,body{margin:0;height:100%;background:#f4f6f5;font-family:system-ui,Roboto,sans-serif;color:#1d2b24}
+iframe{border:0;width:100%;height:100%;display:block}
+#setup{max-width:420px;margin:0 auto;padding:40px 16px;display:flex;flex-direction:column;gap:12px}
+#setup input{padding:12px;font-size:17px;border:1px solid #ccd5d0;border-radius:10px}
+#setup button{padding:13px;font-size:16px;border:0;border-radius:10px;background:#1d6b4a;color:#fff}
+[hidden]{display:none!important}
+</style></head><body>
+<div id="setup" hidden>
+  <h2 style="margin:0">Sổ thu chi</h2>
+  <p style="margin:0">Nhập mã sổ (chỉ cần nhập 1 lần trên máy này).</p>
+  <input id="k" autocomplete="off" placeholder="Mã sổ">
+  <button id="ok">Mở sổ</button>
+</div>
+<iframe id="f" hidden title="Sổ thu chi"></iframe>
+<script>
+var EXEC='https://script.google.com/macros/s/AKfycby-bK8wOf9VJZDLkBG6fJ5XQtN2JLvXmlmF-Pty7GDEDI01qRdwGVjbR1ZLuqyD4ugP/exec';
+function get(){try{return localStorage.getItem('stc_k')}catch(e){return null}}
+function set(v){try{localStorage.setItem('stc_k',v)}catch(e){}}
+var h=location.hash.slice(1);
+if(h){set(h);history.replaceState(null,'',location.pathname)}
+function open_(k){var f=document.getElementById('f');f.src=EXEC+'?k='+encodeURIComponent(k);f.hidden=false;document.getElementById('setup').hidden=true}
+var k=get()||h;
+if(k)open_(k);else document.getElementById('setup').hidden=false;
+document.getElementById('ok').onclick=function(){var v=document.getElementById('k').value.trim();if(v){set(v);open_(v)}};
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+</script>
+</body></html>
